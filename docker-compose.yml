@@ -1,0 +1,150 @@
+version: '3.9'
+
+services:
+  # ─────────────────────────────────────────
+  # Frontend — React / Next.js
+  # ─────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: vinculo_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - api
+    networks:
+      - vinculo_net
+
+  # ─────────────────────────────────────────
+  # API — Backend principal (FastAPI / Node)
+  # ─────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: vinculo_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://vinculo_user:vinculo_pass@postgres:5432/vinculo_db
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET=${JWT_SECRET}
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - vinculo_net
+
+  # ─────────────────────────────────────────
+  # Worker — Jobs assíncronos
+  # ─────────────────────────────────────────
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: vinculo_worker
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker"]   # ajuste conforme stack
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://vinculo_user:vinculo_pass@postgres:5432/vinculo_db
+      - REDIS_URL=redis://redis:6379/0
+      - ENVIRONMENT=development
+    depends_on:
+      - api
+      - redis
+    networks:
+      - vinculo_net
+
+  # ─────────────────────────────────────────
+  # PostgreSQL
+  # ─────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: vinculo_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: vinculo_user
+      POSTGRES_PASSWORD: vinculo_pass
+      POSTGRES_DB: vinculo_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vinculo_user -d vinculo_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vinculo_net
+
+  # ─────────────────────────────────────────
+  # Redis — Cache + Filas
+  # ─────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: vinculo_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - vinculo_net
+
+  # ─────────────────────────────────────────
+  # Adminer — GUI banco de dados (dev only)
+  # ─────────────────────────────────────────
+  adminer:
+    image: adminer:latest
+    container_name: vinculo_adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - vinculo_net
+    profiles:
+      - tools
+
+# ─────────────────────────────────────────
+# Volumes nomeados
+# ─────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ─────────────────────────────────────────
+# Rede interna
+# ─────────────────────────────────────────
+networks:
+  vinculo_net:
+    driver: bridge
