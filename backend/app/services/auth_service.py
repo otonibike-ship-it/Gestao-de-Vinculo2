@@ -30,8 +30,9 @@ class AuthService:
         if not usuario.ativo:
             return None
 
+        perfil_str = usuario.perfil.value if hasattr(usuario.perfil, 'value') else str(usuario.perfil)
         access = self._criar_token(
-            {"sub": str(usuario.id), "email": usuario.email, "perfil": usuario.perfil.value},
+            {"sub": str(usuario.id), "email": usuario.email, "perfil": perfil_str},
             timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
         )
         refresh = self._criar_token(
@@ -42,7 +43,7 @@ class AuthService:
             "access_token": access,
             "refresh_token": refresh,
             "token_type": "bearer",
-            "perfil": usuario.perfil.value,
+            "perfil": perfil_str,
             "nome": usuario.nome,
         }
 

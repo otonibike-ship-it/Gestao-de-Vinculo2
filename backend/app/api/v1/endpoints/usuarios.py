@@ -1,3 +1,4 @@
+import traceback
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -10,6 +11,11 @@ from app.models.usuario import Usuario, PerfilUsuario
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def _get_perfil_str(perfil) -> str:
+    """Extrai string do perfil (funciona com Enum ou str)."""
+    return perfil.value if hasattr(perfil, 'value') else str(perfil)
 
 
 # ── Schemas ──────────────────────────────────────────────
@@ -40,77 +46,105 @@ class UsuarioResponse(BaseModel):
 
 @router.get("/")
 async def listar_usuarios(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Usuario).order_by(Usuario.nome))
-    usuarios = result.scalars().all()
-    return [
-        UsuarioResponse(
-            id=u.id,
-            nome=u.nome,
-            email=u.email,
-            perfil=u.perfil.value,
-            ativo=u.ativo,
-        )
-        for u in usuarios
-    ]
+    try:
+        result = await db.execute(select(Usuario).order_by(Usuario.nome))
+        usuarios = result.scalars().all()
+        return [
+            UsuarioResponse(
+                id=u.id,
+                nome=u.nome,
+                email=u.email,
+                perfil=_get_perfil_str(u.perfil),
+                ativo=u.ativo,
+            )
+            for u in usuarios
+        ]
+    except Exception as e:
+        print(f"ERRO listar_usuarios: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao listar usuarios: {str(e)}")
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def criar_usuario(payload: UsuarioCreate, db: AsyncSession = Depends(get_db)):
-    # Verificar email unico
-    existing = await db.execute(select(Usuario).where(Usuario.email == payload.email))
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Email ja cadastrado")
+    try:
+        # Verificar email unico
+        existing = await db.execute(select(Usuario).where(Usuario.email == payload.email))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Email ja cadastrado")
 
-    usuario = Usuario(
-        nome=payload.nome,
-        email=payload.email,
-        senha_hash=pwd_context.hash(payload.senha),
-        perfil=PerfilUsuario(payload.perfil),
-        ativo=True,
-    )
-    db.add(usuario)
-    await db.flush()
-    await db.refresh(usuario)
-    return UsuarioResponse(
-        id=usuario.id,
-        nome=usuario.nome,
-        email=usuario.email,
-        perfil=usuario.perfil.value,
-        ativo=usuario.ativo,
-    )
+        # Validar perfil
+        try:
+            perfil_enum = PerfilUsuario(payload.perfil)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Perfil invalido: {payload.perfil}. Use: comercial, financeiro, ti, admin")
+
+        usuario = Usuario(
+            nome=payload.nome,
+            email=payload.email,
+            senha_hash=pwd_context.hash(payload.senha),
+            perfil=perfil_enum,
+            ativo=True,
+        )
+        db.add(usuario)
+        await db.flush()
+        await db.refresh(usuario)
+        return UsuarioResponse(
+            id=usuario.id,
+            nome=usuario.nome,
+            email=usuario.email,
+            perfil=_get_perfil_str(usuario.perfil),
+            ativo=usuario.ativo,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERRO criar_usuario: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao criar usuario: {str(e)}")
 
 
 @router.put("/{usuario_id}")
 async def atualizar_usuario(usuario_id: int, payload: UsuarioUpdate, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Usuario).where(Usuario.id == usuario_id))
-    usuario = result.scalar_one_or_none()
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+    try:
+        result = await db.execute(select(Usuario).where(Usuario.id == usuario_id))
+        usuario = result.scalar_one_or_none()
+        if not usuario:
+            raise HTTPException(status_code=404, detail="Usuario nao encontrado")
 
-    if payload.nome is not None:
-        usuario.nome = payload.nome
-    if payload.email is not None:
-        # Verificar email unico
-        existing = await db.execute(
-            select(Usuario).where(Usuario.email == payload.email, Usuario.id != usuario_id)
+        if payload.nome is not None:
+            usuario.nome = payload.nome
+        if payload.email is not None:
+            # Verificar email unico
+            existing = await db.execute(
+                select(Usuario).where(Usuario.email == payload.email, Usuario.id != usuario_id)
+            )
+            if existing.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail="Email ja cadastrado")
+            usuario.email = payload.email
+        if payload.senha is not None:
+            usuario.senha_hash = pwd_context.hash(payload.senha)
+        if payload.perfil is not None:
+            try:
+                usuario.perfil = PerfilUsuario(payload.perfil)
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Perfil invalido: {payload.perfil}")
+
+        await db.flush()
+        await db.refresh(usuario)
+        return UsuarioResponse(
+            id=usuario.id,
+            nome=usuario.nome,
+            email=usuario.email,
+            perfil=_get_perfil_str(usuario.perfil),
+            ativo=usuario.ativo,
         )
-        if existing.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="Email ja cadastrado")
-        usuario.email = payload.email
-    if payload.senha is not None:
-        usuario.senha_hash = pwd_context.hash(payload.senha)
-    if payload.perfil is not None:
-        usuario.perfil = PerfilUsuario(payload.perfil)
-
-    await db.flush()
-    await db.refresh(usuario)
-    return UsuarioResponse(
-        id=usuario.id,
-        nome=usuario.nome,
-        email=usuario.email,
-        perfil=usuario.perfil.value,
-        ativo=usuario.ativo,
-    )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERRO atualizar_usuario: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar usuario: {str(e)}")
 
 
 @router.delete("/{usuario_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -51,6 +51,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 app.add_middleware(
@@ -60,6 +61,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def normalize_trailing_slash(request, call_next):
+    """Adiciona trailing slash se a rota nao for encontrada sem ela.
+    Resolve o problema do proxy Next.js que remove a barra final."""
+    from starlette.datastructures import URL
+    path = request.scope["path"]
+    if path != "/" and not path.endswith("/") and not "." in path.split("/")[-1]:
+        request.scope["path"] = path + "/"
+    response = await call_next(request)
+    return response
 
 app.include_router(api_router, prefix="/api/v1")
 

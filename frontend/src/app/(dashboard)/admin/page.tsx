@@ -65,13 +65,23 @@ export default function AdminPage() {
   const criarMutation = useMutation({
     mutationFn: usuarioService.criar,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['usuarios'] }); resetForm() },
-    onError: (e: any) => setErroUser(e?.response?.data?.detail || 'Erro ao criar'),
+    onError: (e: any) => {
+      const detail = e?.response?.data?.detail
+      const status = e?.response?.status
+      const msg = detail || (status ? `Erro ${status}: ${e.message}` : `Erro de rede: ${e.message}`)
+      setErroUser(msg)
+    },
   })
 
   const atualizarMutation = useMutation({
     mutationFn: ({ id, ...payload }: any) => usuarioService.atualizar(id, payload),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['usuarios'] }); resetForm() },
-    onError: (e: any) => setErroUser(e?.response?.data?.detail || 'Erro ao atualizar'),
+    onError: (e: any) => {
+      const detail = e?.response?.data?.detail
+      const status = e?.response?.status
+      const msg = detail || (status ? `Erro ${status}: ${e.message}` : `Erro de rede: ${e.message}`)
+      setErroUser(msg)
+    },
   })
 
   const deletarUserMutation = useMutation({
