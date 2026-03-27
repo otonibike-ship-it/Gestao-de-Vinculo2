@@ -9,7 +9,6 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: dev
-    container_name: vinculo_frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -18,21 +17,20 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_API_URL=http://api:8000
     depends_on:
       - api
     networks:
       - vinculo_net
 
   # ─────────────────────────────────────────
-  # API — Backend principal (FastAPI / Node)
+  # API — Backend principal (FastAPI)
   # ─────────────────────────────────────────
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: dev
-    container_name: vinculo_api
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -61,9 +59,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: dev
-    container_name: vinculo_worker
     restart: unless-stopped
-    command: ["python", "-m", "app.worker"]   # ajuste conforme stack
+    command: ["python", "-m", "app.worker"]
     volumes:
       - ./backend:/app
     env_file:
@@ -85,10 +82,7 @@ services:
     build:
       context: ./docker/postgres
       dockerfile: Dockerfile
-    container_name: vinculo_postgres
     restart: unless-stopped
-    ports:
-      - "5433:5432"
     environment:
       POSTGRES_USER: vinculo_user
       POSTGRES_PASSWORD: vinculo_pass
@@ -108,31 +102,12 @@ services:
   # ─────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: vinculo_redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes
     networks:
       - vinculo_net
-
-  # ─────────────────────────────────────────
-  # Adminer — GUI banco de dados (dev only)
-  # ─────────────────────────────────────────
-  adminer:
-    image: adminer:latest
-    container_name: vinculo_adminer
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    depends_on:
-      - postgres
-    networks:
-      - vinculo_net
-    profiles:
-      - tools
 
 # ─────────────────────────────────────────
 # Volumes nomeados
