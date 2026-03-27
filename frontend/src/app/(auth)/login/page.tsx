@@ -14,11 +14,11 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
-const credenciais = [
-  { perfil: 'Comercial', email: 'comercial@vinculo.com', senha: '123456' },
-  { perfil: 'Financeiro', email: 'financeiro@vinculo.com', senha: '123456' },
-  { perfil: 'TI', email: 'ti@vinculo.com', senha: '123456' },
-  { perfil: 'Admin', email: 'admin@vinculo.com', senha: 'admin123' },
+const dashboards = [
+  { perfil: 'Comercial', cor: 'bg-blue-50 text-blue-700 border-blue-100' },
+  { perfil: 'Financeiro', cor: 'bg-amber-50 text-amber-700 border-amber-100' },
+  { perfil: 'TI', cor: 'bg-purple-50 text-purple-700 border-purple-100' },
+  { perfil: 'Admin', cor: 'bg-red-50 text-red-700 border-red-100' },
 ]
 
 export default function LoginPage() {
@@ -41,11 +41,6 @@ export default function LoginPage() {
     } finally {
       setCarregando(false)
     }
-  }
-
-  const preencherCredencial = (email: string, senha: string) => {
-    setValue('email', email)
-    setValue('senha', senha)
   }
 
   return (
@@ -106,20 +101,17 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Credenciais de teste */}
+          {/* Dashboards disponiveis */}
           <div className="mt-6 pt-5 border-t border-slate-100">
-            <p className="text-xs text-slate-400 text-center mb-3">Credenciais de teste</p>
+            <p className="text-xs text-slate-400 text-center mb-3">Dashboards</p>
             <div className="grid grid-cols-2 gap-2">
-              {credenciais.map((c) => (
-                <button
-                  key={c.perfil}
-                  type="button"
-                  onClick={() => preencherCredencial(c.email, c.senha)}
-                  className="text-left px-3 py-2 rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors"
+              {dashboards.map((d) => (
+                <div
+                  key={d.perfil}
+                  className={`px-3 py-2 rounded-lg border text-center ${d.cor}`}
                 >
-                  <p className="text-xs font-medium text-slate-600">{c.perfil}</p>
-                  <p className="text-[10px] text-slate-400 truncate">{c.email}</p>
-                </button>
+                  <p className="text-xs font-semibold">{d.perfil}</p>
+                </div>
               ))}
             </div>
           </div>
