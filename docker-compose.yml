@@ -10,8 +10,8 @@ services:
       dockerfile: Dockerfile
       target: dev
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -32,8 +32,8 @@ services:
       dockerfile: Dockerfile
       target: dev
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - ./backend:/app
     env_file:
