@@ -82,7 +82,9 @@ services:
   # PostgreSQL
   # ─────────────────────────────────────────
   postgres:
-    image: postgres:16-alpine
+    build:
+      context: ./docker/postgres
+      dockerfile: Dockerfile
     container_name: vinculo_postgres
     restart: unless-stopped
     ports:
@@ -92,8 +94,7 @@ services:
       POSTGRES_PASSWORD: vinculo_pass
       POSTGRES_DB: vinculo_db
     volumes:
-      - postgres_data:/var/lib/postgresql/data       
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vinculo_user -d vinculo_db"]
       interval: 10s
