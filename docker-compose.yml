@@ -12,9 +12,6 @@ services:
     restart: unless-stopped
     expose:
       - "3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=http://api:8000
@@ -34,44 +31,16 @@ services:
     restart: unless-stopped
     expose:
       - "8000"
-    volumes:
-      - ./backend:/app
-    env_file:
-      - .env
     environment:
       - DATABASE_URL=postgresql://vinculo_user:vinculo_pass@postgres:5432/vinculo_db
       - REDIS_URL=redis://redis:6379/0
-      - JWT_SECRET=${JWT_SECRET}
-      - ENVIRONMENT=development
+      - JWT_SECRET=super-secret-key-change-in-production
+      - ENVIRONMENT=production
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_started
-    networks:
-      - vinculo_net
-
-  # ─────────────────────────────────────────
-  # Worker — Jobs assíncronos
-  # ─────────────────────────────────────────
-  worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      target: dev
-    restart: unless-stopped
-    command: ["python", "-m", "app.worker"]
-    volumes:
-      - ./backend:/app
-    env_file:
-      - .env
-    environment:
-      - DATABASE_URL=postgresql://vinculo_user:vinculo_pass@postgres:5432/vinculo_db
-      - REDIS_URL=redis://redis:6379/0
-      - ENVIRONMENT=development
-    depends_on:
-      - api
-      - redis
     networks:
       - vinculo_net
 
