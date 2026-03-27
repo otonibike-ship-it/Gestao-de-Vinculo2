@@ -14,7 +14,7 @@ services:
       - "3000"
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://api:8000
+      - INTERNAL_API_URL=http://api:8000
     depends_on:
       - api
     networks:
