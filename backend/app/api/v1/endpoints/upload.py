@@ -11,7 +11,7 @@ ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf"}
 MAX_SIZE = 10 * 1024 * 1024  # 10MB
 
 
-@router.post("/")
+@router.post("")
 async def upload_file(file: UploadFile = File(...)):
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in ALLOWED_EXTENSIONS:

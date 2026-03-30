@@ -44,7 +44,7 @@ class UsuarioResponse(BaseModel):
 
 # ── Endpoints ────────────────────────────────────────────
 
-@router.get("/")
+@router.get("")
 async def listar_usuarios(db: AsyncSession = Depends(get_db)):
     try:
         result = await db.execute(select(Usuario).order_by(Usuario.nome))
@@ -65,7 +65,7 @@ async def listar_usuarios(db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Erro ao listar usuarios: {str(e)}")
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 async def criar_usuario(payload: UsuarioCreate, db: AsyncSession = Depends(get_db)):
     try:
         # Verificar email unico

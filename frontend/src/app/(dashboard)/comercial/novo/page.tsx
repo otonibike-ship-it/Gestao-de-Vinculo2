@@ -33,7 +33,7 @@ export default function NovoPedidoPage() {
   const { data: empresas } = useQuery({
     queryKey: ['empresas'],
     queryFn: async () => {
-      const res = await api.get('/empresas/')
+      const res = await api.get('/empresas')
       return res.data
     },
   })

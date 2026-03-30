@@ -32,7 +32,7 @@ export const vinculoService = {
   async listar(status?: string) {
     const params: Record<string, string> = {}
     if (status) params.status = status
-    const { data } = await api.get('/vinculos/', { params })
+    const { data } = await api.get('/vinculos', { params })
     return data as VinculoData[]
   },
 
@@ -42,7 +42,7 @@ export const vinculoService = {
   },
 
   async criar(payload: VinculoCreatePayload) {
-    const { data } = await api.post('/vinculos/', payload)
+    const { data } = await api.post('/vinculos', payload)
     return data as VinculoData
   },
 
@@ -70,7 +70,7 @@ export const uploadService = {
   async upload(file: File) {
     const formData = new FormData()
     formData.append('file', file)
-    const { data } = await api.post('/upload/', formData, {
+    const { data } = await api.post('/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     return data as { filename: string; url: string }

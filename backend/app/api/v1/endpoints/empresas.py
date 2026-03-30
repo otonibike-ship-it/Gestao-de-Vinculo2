@@ -9,7 +9,7 @@ from app.schemas.pessoa import EmpresaCreate, EmpresaResponse
 router = APIRouter()
 
 
-@router.get("/", response_model=List[EmpresaResponse])
+@router.get("", response_model=List[EmpresaResponse])
 async def listar_empresas(skip: int = 0, limit: int = 50, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Empresa).offset(skip).limit(limit))
     return result.scalars().all()
@@ -24,7 +24,7 @@ async def obter_empresa(empresa_id: int, db: AsyncSession = Depends(get_db)):
     return empresa
 
 
-@router.post("/", response_model=EmpresaResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=EmpresaResponse, status_code=status.HTTP_201_CREATED)
 async def criar_empresa(payload: EmpresaCreate, db: AsyncSession = Depends(get_db)):
     empresa = Empresa(**payload.model_dump())
     db.add(empresa)

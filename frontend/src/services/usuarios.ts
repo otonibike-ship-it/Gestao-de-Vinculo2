@@ -24,12 +24,12 @@ export interface UsuarioUpdatePayload {
 
 export const usuarioService = {
   async listar() {
-    const { data } = await api.get('/usuarios/')
+    const { data } = await api.get('/usuarios')
     return data as UsuarioData[]
   },
 
   async criar(payload: UsuarioCreatePayload) {
-    const { data } = await api.post('/usuarios/', payload)
+    const { data } = await api.post('/usuarios', payload)
     return data as UsuarioData
   },
 

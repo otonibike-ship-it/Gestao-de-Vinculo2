@@ -31,7 +31,7 @@ async def _enrich(v: Vinculo, db: AsyncSession) -> dict:
     }
 
 
-@router.get("/")
+@router.get("")
 async def listar_vinculos(
     status_filter: Optional[str] = Query(None, alias="status"),
     skip: int = 0,
@@ -56,7 +56,7 @@ async def obter_vinculo(vinculo_id: int, db: AsyncSession = Depends(get_db)):
     return await _enrich(vinculo, db)
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED)
 async def criar_vinculo(payload: VinculoCreate, db: AsyncSession = Depends(get_db)):
     # Definir status baseado em necessario_validacao
     if payload.necessario_validacao:
