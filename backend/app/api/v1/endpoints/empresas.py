@@ -33,6 +33,19 @@ async def criar_empresa(payload: EmpresaCreate, db: AsyncSession = Depends(get_d
     return empresa
 
 
+@router.put("/{empresa_id}", response_model=EmpresaResponse)
+async def atualizar_empresa(empresa_id: int, payload: EmpresaCreate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Empresa).where(Empresa.id == empresa_id))
+    empresa = result.scalar_one_or_none()
+    if not empresa:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(empresa, field, value)
+    await db.flush()
+    await db.refresh(empresa)
+    return empresa
+
+
 @router.delete("/{empresa_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remover_empresa(empresa_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Empresa).where(Empresa.id == empresa_id))

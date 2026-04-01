@@ -1,92 +1,290 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
-import { Building2, Search } from 'lucide-react'
-import api from '@/lib/api'
 import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Building2, Search, Plus, X, Pencil, Trash2 } from 'lucide-react'
+import api from '@/lib/api'
+
+interface FranquiaData {
+  id: number
+  razao_social: string
+  cnpj: string
+  email: string | null
+  nome_fantasia: string | null
+  criado_em: string
+}
 
 export default function EmpresasPage() {
+  const queryClient = useQueryClient()
   const [busca, setBusca] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [editando, setEditando] = useState<FranquiaData | null>(null)
+  const [formNome, setFormNome] = useState('')
+  const [formCnpj, setFormCnpj] = useState('')
+  const [formEmail, setFormEmail] = useState('')
+  const [erro, setErro] = useState('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['empresas'],
     queryFn: async () => {
       const res = await api.get('/empresas')
-      return res.data
+      return res.data as FranquiaData[]
     },
   })
 
-  const filtrados = data?.filter((e: any) => {
+  const criarMutation = useMutation({
+    mutationFn: (payload: { razao_social: string; cnpj: string; email?: string }) =>
+      api.post('/empresas', payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['empresas'] })
+      resetForm()
+    },
+    onError: (e: any) => {
+      const detail = e?.response?.data?.detail
+      const status = e?.response?.status
+      setErro(detail || (status ? `Erro ${status}` : 'Erro ao salvar'))
+    },
+  })
+
+  const atualizarMutation = useMutation({
+    mutationFn: ({ id, ...payload }: { id: number; razao_social: string; cnpj: string; email?: string }) =>
+      api.put(`/empresas/${id}`, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['empresas'] })
+      resetForm()
+    },
+    onError: (e: any) => {
+      const detail = e?.response?.data?.detail
+      setErro(detail || 'Erro ao atualizar')
+    },
+  })
+
+  const deletarMutation = useMutation({
+    mutationFn: (id: number) => api.delete(`/empresas/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['empresas'] }),
+  })
+
+  const resetForm = () => {
+    setShowForm(false)
+    setEditando(null)
+    setFormNome('')
+    setFormCnpj('')
+    setFormEmail('')
+    setErro('')
+  }
+
+  const abrirEdicao = (f: FranquiaData) => {
+    setEditando(f)
+    setFormNome(f.nome_fantasia || f.razao_social)
+    setFormCnpj(f.cnpj)
+    setFormEmail(f.email || '')
+    setErro('')
+    setShowForm(true)
+  }
+
+  const handleSubmit = () => {
+    setErro('')
+    if (!formNome.trim()) { setErro('Nome é obrigatório'); return }
+    if (!formCnpj.trim()) { setErro('CNPJ é obrigatório'); return }
+
+    const payload = {
+      razao_social: formNome.trim(),
+      nome_fantasia: formNome.trim(),
+      cnpj: formCnpj.trim(),
+      email: formEmail.trim() || undefined,
+    }
+
+    if (editando) {
+      atualizarMutation.mutate({ id: editando.id, ...payload })
+    } else {
+      criarMutation.mutate(payload)
+    }
+  }
+
+  const formatCnpj = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 14)
+    return digits
+      .replace(/(\d{2})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2')
+  }
+
+  const filtrados = data?.filter((f) => {
     if (!busca) return true
-    const termo = busca.toLowerCase()
+    const t = busca.toLowerCase()
     return (
-      e.razao_social?.toLowerCase().includes(termo) ||
-      e.nome_fantasia?.toLowerCase().includes(termo) ||
-      e.cnpj?.includes(termo)
+      (f.nome_fantasia || f.razao_social).toLowerCase().includes(t) ||
+      f.cnpj.includes(t) ||
+      f.email?.toLowerCase().includes(t)
     )
   })
 
+  const salvando = criarMutation.isPending || atualizarMutation.isPending
+
   return (
     <div className="space-y-4">
-      <div className="relative max-w-xs">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Buscar empresa..."
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition-all"
-        />
+      {/* Barra de ações */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="relative max-w-xs flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Buscar franquia..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
+          />
+        </div>
+        <button
+          onClick={() => { resetForm(); setShowForm(true) }}
+          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+        >
+          <Plus size={16} />
+          Nova Franquia
+        </button>
       </div>
 
+      {/* Formulário inline */}
+      {showForm && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-5 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm font-semibold text-slate-700">
+              {editando ? 'Editar Franquia' : 'Nova Franquia'}
+            </p>
+            <button onClick={resetForm} className="text-slate-400 hover:text-slate-600">
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                Nome <span className="text-red-400">*</span>
+              </label>
+              <input
+                value={formNome}
+                onChange={(e) => setFormNome(e.target.value)}
+                placeholder="Nome da franquia"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                CNPJ <span className="text-red-400">*</span>
+              </label>
+              <input
+                value={formCnpj}
+                onChange={(e) => setFormCnpj(formatCnpj(e.target.value))}
+                placeholder="00.000.000/0000-00"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all font-mono"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
+                E-mail
+              </label>
+              <input
+                type="email"
+                value={formEmail}
+                onChange={(e) => setFormEmail(e.target.value)}
+                placeholder="contato@franquia.com.br"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
+              />
+            </div>
+          </div>
+
+          {erro && <p className="text-red-500 text-xs mt-3">{erro}</p>}
+
+          <div className="flex justify-end gap-2 mt-4">
+            <button
+              onClick={resetForm}
+              className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={salvando}
+              className="px-4 py-2 text-sm font-medium text-white bg-slate-800 hover:bg-slate-900 rounded-lg transition-colors disabled:opacity-50"
+            >
+              {salvando ? 'Salvando...' : editando ? 'Salvar' : 'Cadastrar'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Estado de carregamento */}
       {isLoading && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center text-sm text-slate-400">
           Carregando...
         </div>
       )}
 
-      {filtrados && filtrados.length === 0 && (
+      {/* Lista vazia */}
+      {!isLoading && filtrados && filtrados.length === 0 && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
           <Building2 size={24} className="text-slate-300 mx-auto mb-2" />
-          <p className="text-sm text-slate-500">Nenhuma empresa encontrada</p>
+          <p className="text-sm text-slate-500">Nenhuma franquia encontrada</p>
         </div>
       )}
 
+      {/* Tabela */}
       {filtrados && filtrados.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Razão Social</th>
+                <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Nome</th>
                 <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">CNPJ</th>
-                <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Nome Fantasia</th>
                 <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">E-mail</th>
                 <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Cadastro</th>
+                <th className="text-right px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider w-24">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filtrados.map((e: any) => (
-                <tr key={e.id} className="hover:bg-slate-50 transition-colors">
+              {filtrados.map((f) => (
+                <tr key={f.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-xs font-semibold text-amber-600 shrink-0">
-                        {e.razao_social?.charAt(0) || '?'}
+                      <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-xs font-bold text-amber-600 shrink-0">
+                        {(f.nome_fantasia || f.razao_social).charAt(0).toUpperCase()}
                       </div>
-                      <span className="font-medium text-slate-800">{e.razao_social}</span>
+                      <span className="font-medium text-slate-800">{f.nome_fantasia || f.razao_social}</span>
                     </div>
                   </td>
-                  <td className="px-5 py-3 text-slate-500 font-mono text-xs">{e.cnpj}</td>
-                  <td className="px-5 py-3 text-slate-600">{e.nome_fantasia || '—'}</td>
-                  <td className="px-5 py-3 text-slate-500">{e.email || '—'}</td>
+                  <td className="px-5 py-3 text-slate-500 font-mono text-xs">{f.cnpj}</td>
+                  <td className="px-5 py-3 text-slate-500">{f.email || '—'}</td>
                   <td className="px-5 py-3 text-slate-400 text-xs">
-                    {e.criado_em ? new Date(e.criado_em).toLocaleDateString('pt-BR') : '—'}
+                    {f.criado_em ? new Date(f.criado_em).toLocaleDateString('pt-BR') : '—'}
+                  </td>
+                  <td className="px-5 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => abrirEdicao(f)}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Editar"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Excluir a franquia "${f.nome_fantasia || f.razao_social}"?`))
+                            deletarMutation.mutate(f.id)
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Excluir"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
           <div className="px-5 py-2.5 border-t border-slate-100 bg-slate-50">
-            <p className="text-xs text-slate-400">{filtrados.length} registro(s)</p>
+            <p className="text-xs text-slate-400">{filtrados.length} franquia(s)</p>
           </div>
         </div>
       )}
