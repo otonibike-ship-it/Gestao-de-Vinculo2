@@ -47,7 +47,7 @@ export default function EmpresasPage() {
   })
 
   const atualizarMutation = useMutation({
-    mutationFn: ({ id, ...payload }: { id: number; razao_social: string; cnpj: string; email?: string }) =>
+    mutationFn: ({ id, ...payload }: { id: number; razao_social: string; nome_fantasia: string; cnpj: string; email?: string }) =>
       api.put(`/empresas/${id}`, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['empresas'] })
@@ -55,7 +55,8 @@ export default function EmpresasPage() {
     },
     onError: (e: any) => {
       const detail = e?.response?.data?.detail
-      setErro(detail || 'Erro ao atualizar')
+      const httpStatus = e?.response?.status
+      setErro(detail || (httpStatus ? `Erro ${httpStatus}: ${e.message}` : `Erro de rede: ${e.message}`))
     },
   })
 

@@ -1,10 +1,19 @@
+import traceback
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List
+from typing import List, Optional
+from pydantic import BaseModel
 from app.core.database import get_db
 from app.models.pessoa import Empresa
 from app.schemas.pessoa import EmpresaCreate, EmpresaResponse
+
+class EmpresaUpdate(BaseModel):
+    razao_social: str
+    nome_fantasia: Optional[str] = None
+    cnpj: str
+    email: Optional[str] = None
+
 
 router = APIRouter()
 
@@ -26,24 +35,54 @@ async def obter_empresa(empresa_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("", response_model=EmpresaResponse, status_code=status.HTTP_201_CREATED)
 async def criar_empresa(payload: EmpresaCreate, db: AsyncSession = Depends(get_db)):
-    empresa = Empresa(**payload.model_dump())
-    db.add(empresa)
-    await db.flush()
-    await db.refresh(empresa)
-    return empresa
+    try:
+        # Verificar CNPJ duplicado
+        existing = await db.execute(select(Empresa).where(Empresa.cnpj == payload.cnpj))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="CNPJ já cadastrado")
+        empresa = Empresa(**payload.model_dump())
+        db.add(empresa)
+        await db.flush()
+        await db.refresh(empresa)
+        return empresa
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERRO criar_empresa: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao criar franquia: {str(e)}")
 
 
 @router.put("/{empresa_id}", response_model=EmpresaResponse)
-async def atualizar_empresa(empresa_id: int, payload: EmpresaCreate, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Empresa).where(Empresa.id == empresa_id))
-    empresa = result.scalar_one_or_none()
-    if not empresa:
-        raise HTTPException(status_code=404, detail="Empresa não encontrada")
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(empresa, field, value)
-    await db.flush()
-    await db.refresh(empresa)
-    return empresa
+async def atualizar_empresa(empresa_id: int, payload: EmpresaUpdate, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await db.execute(select(Empresa).where(Empresa.id == empresa_id))
+        empresa = result.scalar_one_or_none()
+        if not empresa:
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+
+        # Verificar CNPJ duplicado (excluindo a própria empresa)
+        if payload.cnpj != empresa.cnpj:
+            existing = await db.execute(
+                select(Empresa).where(Empresa.cnpj == payload.cnpj, Empresa.id != empresa_id)
+            )
+            if existing.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail="CNPJ já cadastrado por outra franquia")
+
+        empresa.razao_social = payload.razao_social
+        empresa.nome_fantasia = payload.nome_fantasia
+        empresa.cnpj = payload.cnpj
+        empresa.email = payload.email
+
+        await db.flush()
+        await db.refresh(empresa)
+        return empresa
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERRO atualizar_empresa: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro ao atualizar franquia: {str(e)}")
 
 
 @router.delete("/{empresa_id}", status_code=status.HTTP_204_NO_CONTENT)
