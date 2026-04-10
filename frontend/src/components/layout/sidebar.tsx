@@ -9,6 +9,7 @@ import {
   Building2,
   Shield,
   LogOut,
+  Store,
 } from 'lucide-react'
 import { authService, Perfil } from '@/services/auth'
 import { useEffect, useState } from 'react'
@@ -17,6 +18,7 @@ const allNavItems = [
   { href: '/comercial', label: 'Comercial', icon: ShoppingCart, perfis: ['comercial', 'admin'] },
   { href: '/financeiro', label: 'Financeiro', icon: DollarSign, perfis: ['financeiro', 'admin'] },
   { href: '/ti', label: 'TI', icon: Monitor, perfis: ['ti', 'admin'] },
+  { href: '/franquia', label: 'Meus Pedidos', icon: Store, perfis: ['franquia'] },
   { href: '/empresas', label: 'Franquias', icon: Building2, perfis: ['comercial', 'financeiro', 'ti', 'admin'] },
   { href: '/admin', label: 'Admin', icon: Shield, perfis: ['admin'] },
 ]
@@ -26,6 +28,7 @@ const perfilLabels: Record<Perfil, string> = {
   financeiro: 'Financeiro',
   ti: 'TI',
   admin: 'Administrador',
+  franquia: 'Franquia',
 }
 
 export function Sidebar() {
@@ -42,13 +45,11 @@ export function Sidebar() {
 
   return (
     <aside className="w-60 bg-slate-900 flex flex-col h-full shrink-0">
-      {/* Logo */}
       <div className="px-5 py-5 border-b border-slate-700/50">
         <h1 className="text-base font-bold text-white tracking-tight">Gestao de Vinculos</h1>
         <p className="text-[11px] text-slate-500 mt-0.5">SenseBike</p>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5">
         {navItems.map(({ href, label, icon: Icon }) => {
           const ativo = pathname === href || pathname.startsWith(href + '/')
@@ -69,7 +70,6 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Footer */}
       <div className="px-3 py-4 border-t border-slate-700/50">
         <div className="flex items-center gap-3 px-3 py-2 mb-1">
           <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-semibold text-slate-300">

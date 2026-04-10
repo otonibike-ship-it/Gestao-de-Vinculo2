@@ -1,12 +1,13 @@
 import api from '@/lib/api'
 
-export type Perfil = 'comercial' | 'financeiro' | 'ti' | 'admin'
+export type Perfil = 'comercial' | 'financeiro' | 'ti' | 'admin' | 'franquia'
 
 const REDIRECT_MAP: Record<Perfil, string> = {
   comercial: '/comercial',
   financeiro: '/financeiro',
   ti: '/ti',
   admin: '/comercial',
+  franquia: '/franquia',
 }
 
 export const authService = {
@@ -23,6 +24,11 @@ export const authService = {
     localStorage.setItem('refresh_token', data.refresh_token)
     localStorage.setItem('perfil', data.perfil)
     localStorage.setItem('nome', data.nome)
+    if (data.franquia_id) {
+      localStorage.setItem('franquia_id', String(data.franquia_id))
+    } else {
+      localStorage.removeItem('franquia_id')
+    }
     return data
   },
 
@@ -31,6 +37,7 @@ export const authService = {
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('perfil')
     localStorage.removeItem('nome')
+    localStorage.removeItem('franquia_id')
     window.location.href = '/login'
   },
 
@@ -44,6 +51,11 @@ export const authService = {
 
   getNome(): string {
     return localStorage.getItem('nome') || 'Usuário'
+  },
+
+  getFranquiaId(): number | null {
+    const id = localStorage.getItem('franquia_id')
+    return id ? Number(id) : null
   },
 
   getRedirectPath(): string {

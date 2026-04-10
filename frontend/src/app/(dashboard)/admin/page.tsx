@@ -6,12 +6,14 @@ import { Search, Plus, Trash2, Pencil, X, Users, ShoppingCart } from 'lucide-rea
 import { usuarioService, UsuarioData } from '@/services/usuarios'
 import { vinculoService, VinculoData } from '@/services/vinculo'
 import { VinculoModal } from '@/components/vinculo-modal'
+import api from '@/lib/api'
 
 const perfilLabels: Record<string, string> = {
   comercial: 'Comercial',
   financeiro: 'Financeiro',
   ti: 'TI',
   admin: 'Admin',
+  franquia: 'Franquia',
 }
 
 const perfilColors: Record<string, string> = {
@@ -19,17 +21,20 @@ const perfilColors: Record<string, string> = {
   financeiro: 'bg-amber-100 text-amber-700',
   ti: 'bg-purple-100 text-purple-700',
   admin: 'bg-red-100 text-red-700',
+  franquia: 'bg-green-100 text-green-700',
 }
 
 const statusLabels: Record<string, string> = {
-  aberto: 'Aberto',
-  validacao_financeiro: 'Valid. Financeiro',
-  tarefa_ti: 'Tarefa TI',
-  fechado: 'Fechado',
+  aberto: 'Reprovado',
+  validacao_comercial: 'Aguard. Comercial',
+  validacao_financeiro: 'Aguard. Financeiro',
+  tarefa_ti: 'Aguard. TI',
+  fechado: 'Vinculado',
 }
 
 const statusColors: Record<string, string> = {
-  aberto: 'bg-blue-100 text-blue-700',
+  aberto: 'bg-red-100 text-red-700',
+  validacao_comercial: 'bg-orange-100 text-orange-700',
   validacao_financeiro: 'bg-amber-100 text-amber-700',
   tarefa_ti: 'bg-purple-100 text-purple-700',
   fechado: 'bg-green-100 text-green-700',
@@ -46,6 +51,7 @@ export default function AdminPage() {
   const [formEmail, setFormEmail] = useState('')
   const [formSenha, setFormSenha] = useState('')
   const [formPerfil, setFormPerfil] = useState('comercial')
+  const [formFranquiaId, setFormFranquiaId] = useState<number | null>(null)
   const [erroUser, setErroUser] = useState('')
 
   // ── Vinculos ──
@@ -60,6 +66,14 @@ export default function AdminPage() {
   const { data: vinculos, isLoading: loadingVinc } = useQuery({
     queryKey: ['vinculos'],
     queryFn: () => vinculoService.listar(),
+  })
+
+  const { data: empresas } = useQuery({
+    queryKey: ['empresas'],
+    queryFn: async () => {
+      const res = await api.get('/empresas')
+      return res.data as { id: number; razao_social: string; nome_fantasia: string | null }[]
+    },
   })
 
   const criarMutation = useMutation({
@@ -101,6 +115,7 @@ export default function AdminPage() {
     setFormEmail('')
     setFormSenha('')
     setFormPerfil('comercial')
+    setFormFranquiaId(null)
     setErroUser('')
   }
 
@@ -110,6 +125,7 @@ export default function AdminPage() {
     setFormEmail(u.email)
     setFormSenha('')
     setFormPerfil(u.perfil)
+    setFormFranquiaId(u.franquia_id ?? null)
     setShowForm(true)
     setErroUser('')
   }
@@ -120,13 +136,17 @@ export default function AdminPage() {
       setErroUser('Nome e email sao obrigatorios')
       return
     }
+    if (formPerfil === 'franquia' && !formFranquiaId) {
+      setErroUser('Selecione a franquia para este usuario')
+      return
+    }
     if (editUser) {
-      const payload: any = { id: editUser.id, nome: formNome, email: formEmail, perfil: formPerfil }
+      const payload: any = { id: editUser.id, nome: formNome, email: formEmail, perfil: formPerfil, franquia_id: formPerfil === 'franquia' ? formFranquiaId : null }
       if (formSenha) payload.senha = formSenha
       atualizarMutation.mutate(payload)
     } else {
       if (!formSenha) { setErroUser('Senha e obrigatoria'); return }
-      criarMutation.mutate({ nome: formNome, email: formEmail, senha: formSenha, perfil: formPerfil })
+      criarMutation.mutate({ nome: formNome, email: formEmail, senha: formSenha, perfil: formPerfil, franquia_id: formPerfil === 'franquia' ? formFranquiaId : null })
     }
   }
 
@@ -202,13 +222,14 @@ export default function AdminPage() {
               <div className="flex gap-2">
                 <select
                   value={formPerfil}
-                  onChange={(e) => setFormPerfil(e.target.value)}
+                  onChange={(e) => { setFormPerfil(e.target.value); setFormFranquiaId(null) }}
                   className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
                 >
                   <option value="comercial">Comercial</option>
                   <option value="financeiro">Financeiro</option>
                   <option value="ti">TI</option>
                   <option value="admin">Admin</option>
+                  <option value="franquia">Franquia</option>
                 </select>
                 <button
                   onClick={handleSubmitUser}
@@ -218,6 +239,20 @@ export default function AdminPage() {
                 </button>
               </div>
             </div>
+            {formPerfil === 'franquia' && (
+              <div className="mt-3">
+                <select
+                  value={formFranquiaId ?? ''}
+                  onChange={(e) => setFormFranquiaId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
+                >
+                  <option value="">Selecione a franquia...</option>
+                  {empresas?.map(e => (
+                    <option key={e.id} value={e.id}>{e.nome_fantasia || e.razao_social}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             {erroUser && <p className="text-red-500 text-xs mt-2">{erroUser}</p>}
           </div>
         )}
@@ -229,6 +264,7 @@ export default function AdminPage() {
               <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Nome</th>
               <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Email</th>
               <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Perfil</th>
+              <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Franquia</th>
               <th className="text-right px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider w-24">Acoes</th>
             </tr>
           </thead>
@@ -237,7 +273,7 @@ export default function AdminPage() {
           <table className="w-full text-sm">
             <tbody className="divide-y divide-slate-50">
               {loadingUsers && (
-                <tr><td colSpan={4} className="px-5 py-6 text-center text-xs text-slate-400">Carregando...</td></tr>
+                <tr><td colSpan={5} className="px-5 py-6 text-center text-xs text-slate-400">Carregando...</td></tr>
               )}
               {filteredUsers?.map(u => (
                 <tr key={u.id} className="hover:bg-slate-50 transition-colors">
@@ -247,6 +283,11 @@ export default function AdminPage() {
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${perfilColors[u.perfil] || 'bg-slate-100 text-slate-600'}`}>
                       {perfilLabels[u.perfil] || u.perfil}
                     </span>
+                  </td>
+                  <td className="px-5 py-2.5 text-slate-500 text-xs">
+                    {u.franquia_id
+                      ? (empresas?.find(e => e.id === u.franquia_id)?.nome_fantasia || empresas?.find(e => e.id === u.franquia_id)?.razao_social || `#${u.franquia_id}`)
+                      : '—'}
                   </td>
                   <td className="px-5 py-2.5 text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -269,7 +310,7 @@ export default function AdminPage() {
                 </tr>
               ))}
               {filteredUsers && filteredUsers.length === 0 && (
-                <tr><td colSpan={4} className="px-5 py-6 text-center text-xs text-slate-400">Nenhum usuario encontrado</td></tr>
+                <tr><td colSpan={5} className="px-5 py-6 text-center text-xs text-slate-400">Nenhum usuario encontrado</td></tr>
               )}
             </tbody>
           </table>

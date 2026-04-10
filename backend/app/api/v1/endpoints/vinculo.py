@@ -23,9 +23,12 @@ async def _enrich(v: Vinculo, db: AsyncSession) -> dict:
         "data_pedido": v.data_pedido.isoformat() if v.data_pedido else None,
         "motivo": v.motivo,
         "necessario_validacao": v.necessario_validacao,
+        "quantidade_cupons": v.quantidade_cupons,
+        "cupons": v.cupons,
         "status": v.status.value if v.status else None,
         "anexos": v.anexos or [],
         "justificativa_reprovacao": v.justificativa_reprovacao,
+        "destino_reprovacao": v.destino_reprovacao,
         "criado_em": v.criado_em.isoformat() if v.criado_em else None,
         "atualizado_em": v.atualizado_em.isoformat() if v.atualizado_em else None,
     }
@@ -34,6 +37,7 @@ async def _enrich(v: Vinculo, db: AsyncSession) -> dict:
 @router.get("")
 async def listar_vinculos(
     status_filter: Optional[str] = Query(None, alias="status"),
+    franquia_id: Optional[int] = Query(None),
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
@@ -41,6 +45,8 @@ async def listar_vinculos(
     query = select(Vinculo)
     if status_filter:
         query = query.where(Vinculo.status == status_filter)
+    if franquia_id:
+        query = query.where(Vinculo.franquia_id == franquia_id)
     query = query.order_by(Vinculo.criado_em.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     vinculos = result.scalars().all()
@@ -58,12 +64,7 @@ async def obter_vinculo(vinculo_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def criar_vinculo(payload: VinculoCreate, db: AsyncSession = Depends(get_db)):
-    # Definir status baseado em necessario_validacao
-    if payload.necessario_validacao:
-        status_inicial = StatusVinculo.validacao_financeiro
-    else:
-        status_inicial = StatusVinculo.tarefa_ti
-
+    # Sempre inicia em validacao_comercial (fluxo: franquia → comercial → financeiro? → TI → fechado)
     vinculo = Vinculo(
         numero_pedido=payload.numero_pedido,
         franquia_id=payload.franquia_id,
@@ -72,7 +73,9 @@ async def criar_vinculo(payload: VinculoCreate, db: AsyncSession = Depends(get_d
         data_pedido=payload.data_pedido,
         motivo=payload.motivo,
         necessario_validacao=payload.necessario_validacao,
-        status=status_inicial,
+        quantidade_cupons=payload.quantidade_cupons,
+        cupons=[c.model_dump() for c in payload.cupons] if payload.cupons else None,
+        status=StatusVinculo.validacao_comercial,
         anexos=payload.anexos,
     )
     db.add(vinculo)
@@ -88,17 +91,53 @@ async def aprovar_vinculo(vinculo_id: int, payload: AprovarRequest, db: AsyncSes
     if not vinculo:
         raise HTTPException(status_code=404, detail="Vínculo não encontrado")
 
-    if vinculo.status == StatusVinculo.validacao_financeiro:
+    if vinculo.status == StatusVinculo.validacao_comercial:
+        # Comercial pode sobrescrever a flag de validacao financeiro
+        precisa_financeiro = payload.necessario_financeiro if payload.necessario_financeiro is not None else vinculo.necessario_validacao
+        if precisa_financeiro:
+            vinculo.status = StatusVinculo.validacao_financeiro
+            vinculo.necessario_validacao = True
+        else:
+            vinculo.status = StatusVinculo.tarefa_ti
+            vinculo.necessario_validacao = False
+        if payload.anexos:
+            vinculo.anexos = (vinculo.anexos or []) + payload.anexos
+
+    elif vinculo.status == StatusVinculo.validacao_financeiro:
         vinculo.status = StatusVinculo.tarefa_ti
         if payload.anexos:
-            anexos_atuais = vinculo.anexos or []
-            vinculo.anexos = anexos_atuais + payload.anexos
+            vinculo.anexos = (vinculo.anexos or []) + payload.anexos
+
     elif vinculo.status == StatusVinculo.tarefa_ti:
         vinculo.status = StatusVinculo.fechado
+
     else:
-        raise HTTPException(status_code=400, detail=f"Não é possível aprovar vínculo com status '{vinculo.status.value}'")
+        raise HTTPException(status_code=400, detail=f"Não é possível aprovar com status '{vinculo.status.value}'")
 
     vinculo.justificativa_reprovacao = None
+    vinculo.destino_reprovacao = None
+    await db.flush()
+    await db.refresh(vinculo)
+    return await _enrich(vinculo, db)
+
+
+@router.put("/{vinculo_id}/reprovar")
+async def reprovar_vinculo(vinculo_id: int, payload: ReprovarRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Vinculo).where(Vinculo.id == vinculo_id))
+    vinculo = result.scalar_one_or_none()
+    if not vinculo:
+        raise HTTPException(status_code=404, detail="Vínculo não encontrado")
+
+    if vinculo.status not in (
+        StatusVinculo.validacao_comercial,
+        StatusVinculo.validacao_financeiro,
+        StatusVinculo.tarefa_ti,
+    ):
+        raise HTTPException(status_code=400, detail=f"Não é possível reprovar com status '{vinculo.status.value}'")
+
+    vinculo.status = StatusVinculo.aberto
+    vinculo.justificativa_reprovacao = payload.justificativa
+    vinculo.destino_reprovacao = payload.destino
     await db.flush()
     await db.refresh(vinculo)
     return await _enrich(vinculo, db)
@@ -120,31 +159,13 @@ async def reenviar_vinculo(vinculo_id: int, payload: ReenviarRequest, db: AsyncS
     vinculo.data_pedido = payload.data_pedido
     vinculo.motivo = payload.motivo
     vinculo.necessario_validacao = payload.necessario_validacao
+    vinculo.quantidade_cupons = payload.quantidade_cupons
+    vinculo.cupons = [c.model_dump() for c in payload.cupons] if payload.cupons else None
     vinculo.anexos = payload.anexos
     vinculo.justificativa_reprovacao = None
+    vinculo.destino_reprovacao = None
+    vinculo.status = StatusVinculo.validacao_comercial  # sempre volta para comercial
 
-    if payload.necessario_validacao:
-        vinculo.status = StatusVinculo.validacao_financeiro
-    else:
-        vinculo.status = StatusVinculo.tarefa_ti
-
-    await db.flush()
-    await db.refresh(vinculo)
-    return await _enrich(vinculo, db)
-
-
-@router.put("/{vinculo_id}/reprovar")
-async def reprovar_vinculo(vinculo_id: int, payload: ReprovarRequest, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Vinculo).where(Vinculo.id == vinculo_id))
-    vinculo = result.scalar_one_or_none()
-    if not vinculo:
-        raise HTTPException(status_code=404, detail="Vínculo não encontrado")
-
-    if vinculo.status not in (StatusVinculo.validacao_financeiro, StatusVinculo.tarefa_ti):
-        raise HTTPException(status_code=400, detail=f"Não é possível reprovar vínculo com status '{vinculo.status.value}'")
-
-    vinculo.status = StatusVinculo.aberto
-    vinculo.justificativa_reprovacao = payload.justificativa
     await db.flush()
     await db.refresh(vinculo)
     return await _enrich(vinculo, db)

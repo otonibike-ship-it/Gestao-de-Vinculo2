@@ -8,14 +8,16 @@ import { VinculoModal } from '@/components/vinculo-modal'
 import Link from 'next/link'
 
 const statusLabels: Record<string, string> = {
-  aberto: 'Aberto',
-  validacao_financeiro: 'Valid. Financeiro',
-  tarefa_ti: 'Tarefa TI',
-  fechado: 'Fechado',
+  aberto: 'Reprovado',
+  validacao_comercial: 'Aguard. Comercial',
+  validacao_financeiro: 'Aguard. Financeiro',
+  tarefa_ti: 'Aguard. TI',
+  fechado: 'Vinculado',
 }
 
 const statusColors: Record<string, string> = {
-  aberto: 'bg-blue-100 text-blue-700',
+  aberto: 'bg-red-100 text-red-700',
+  validacao_comercial: 'bg-orange-100 text-orange-700',
   validacao_financeiro: 'bg-amber-100 text-amber-700',
   tarefa_ti: 'bg-purple-100 text-purple-700',
   fechado: 'bg-green-100 text-green-700',

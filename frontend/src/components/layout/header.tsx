@@ -11,6 +11,8 @@ const titulos: Record<string, string> = {
   '/ti': 'TI',
   '/empresas': 'Franquias',
   '/admin': 'Administracao',
+  '/franquia': 'Meus Pedidos',
+  '/franquia/novo': 'Novo Pedido de Vínculo',
 }
 
 export function Header() {

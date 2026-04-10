@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Check, XCircle, Upload, FileText, Image as ImageIcon, Pencil, Send } from 'lucide-react'
+import { X, Check, XCircle, Upload, FileText, Image as ImageIcon, Pencil, Send, AlertTriangle } from 'lucide-react'
 import { VinculoData, vinculoService, uploadService } from '@/services/vinculo'
 import { MotivoSelect } from '@/components/motivo-select'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
@@ -10,18 +10,20 @@ import api from '@/lib/api'
 interface VinculoModalProps {
   vinculo: VinculoData
   onClose: () => void
-  modo: 'financeiro' | 'ti' | 'comercial' | 'visualizar'
+  modo: 'financeiro' | 'ti' | 'comercial' | 'franquia' | 'visualizar'
 }
 
 const statusLabels: Record<string, string> = {
-  aberto: 'Aberto',
-  validacao_financeiro: 'Validacao Financeiro',
-  tarefa_ti: 'Tarefa TI',
-  fechado: 'Fechado',
+  aberto: 'Novo Pedido',
+  validacao_comercial: 'Aguard. Comercial',
+  validacao_financeiro: 'Aguard. Financeiro',
+  tarefa_ti: 'Aguard. TI',
+  fechado: 'Vinculado',
 }
 
 const statusColors: Record<string, string> = {
   aberto: 'bg-blue-100 text-blue-700',
+  validacao_comercial: 'bg-orange-100 text-orange-700',
   validacao_financeiro: 'bg-amber-100 text-amber-700',
   tarefa_ti: 'bg-purple-100 text-purple-700',
   fechado: 'bg-green-100 text-green-700',
@@ -35,8 +37,10 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
   const [mostrarReprovar, setMostrarReprovar] = useState(false)
   const [arquivosAprovacao, setArquivosAprovacao] = useState<File[]>([])
   const [enviando, setEnviando] = useState(false)
+  const [destinoReprovacao, setDestinoReprovacao] = useState('franquia')
+  const [necessarioFinanceiro, setNecessarioFinanceiro] = useState(vinculo.necessario_validacao)
 
-  // Estado de edicao (comercial editando pedido reprovado)
+  // Estado de edicao
   const [editando, setEditando] = useState(false)
   const [formFranquiaId, setFormFranquiaId] = useState(vinculo.franquia_id)
   const [formCliente, setFormCliente] = useState(vinculo.nome_cliente)
@@ -46,6 +50,25 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
   const [formValidacao, setFormValidacao] = useState(vinculo.necessario_validacao)
   const [formAnexos, setFormAnexos] = useState<string[]>(vinculo.anexos || [])
   const [novosArquivos, setNovosArquivos] = useState<File[]>([])
+  const [formQuantidadeCupons, setFormQuantidadeCupons] = useState<number>(vinculo.quantidade_cupons ?? 0)
+  const [formValoresCupons, setFormValoresCupons] = useState<string[]>(
+    vinculo.cupons?.map(c => String(c.valor)) ?? []
+  )
+
+  useEffect(() => {
+    setFormValoresCupons(prev => {
+      const arr = [...prev]
+      arr.length = formQuantidadeCupons
+      for (let i = 0; i < formQuantidadeCupons; i++) {
+        if (!arr[i]) arr[i] = ''
+      }
+      return arr
+    })
+  }, [formQuantidadeCupons])
+
+  const somaCupons = formValoresCupons.reduce((acc, v) => acc + (parseFloat(v) || 0), 0)
+  const valorTotalForm = parseFloat(formValor) || 0
+  const cuponsValidos = formQuantidadeCupons === 0 || Math.abs(somaCupons - valorTotalForm) < 0.01
 
   const { data: empresas } = useQuery({
     queryKey: ['empresas'],
@@ -53,10 +76,18 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
       const res = await api.get('/empresas')
       return res.data
     },
-    enabled: editando,
+    enabled: editando && modo !== 'franquia',
   })
 
-  const podeEditar = modo === 'comercial' && vinculo.status === 'aberto' && !!vinculo.justificativa_reprovacao
+  const podeEditar =
+    (modo === 'comercial' || modo === 'franquia') &&
+    vinculo.status === 'aberto' &&
+    !!vinculo.justificativa_reprovacao
+
+  const podeAprovarReprovar =
+    (modo === 'comercial' && vinculo.status === 'validacao_comercial') ||
+    (modo === 'financeiro' && vinculo.status === 'validacao_financeiro') ||
+    (modo === 'ti' && vinculo.status === 'tarefa_ti')
 
   const aprovarMutation = useMutation({
     mutationFn: async () => {
@@ -64,6 +95,9 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
       for (const arq of arquivosAprovacao) {
         const result = await uploadService.upload(arq)
         anexoUrls.push(result.url)
+      }
+      if (modo === 'comercial') {
+        return vinculoService.aprovar(vinculo.id, [], necessarioFinanceiro)
       }
       return vinculoService.aprovar(vinculo.id, anexoUrls)
     },
@@ -74,7 +108,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
   })
 
   const reprovarMutation = useMutation({
-    mutationFn: () => vinculoService.reprovar(vinculo.id, justificativa),
+    mutationFn: () => vinculoService.reprovar(vinculo.id, justificativa, destinoReprovacao),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vinculos'] })
       onClose()
@@ -83,14 +117,12 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
 
   const reenviarMutation = useMutation({
     mutationFn: async () => {
-      // Upload novos arquivos
       const uploadedUrls: string[] = []
       for (const arq of novosArquivos) {
         const result = await uploadService.upload(arq)
         uploadedUrls.push(result.url)
       }
       const todosAnexos = [...formAnexos, ...uploadedUrls]
-
       return vinculoService.reenviar(vinculo.id, {
         franquia_id: formFranquiaId,
         nome_cliente: formCliente,
@@ -98,6 +130,10 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
         data_pedido: formData,
         motivo: formMotivo || undefined,
         necessario_validacao: formValidacao,
+        quantidade_cupons: formQuantidadeCupons > 0 ? formQuantidadeCupons : undefined,
+        cupons: formQuantidadeCupons > 0
+          ? formValoresCupons.map(v => ({ valor: parseFloat(v) }))
+          : undefined,
         anexos: todosAnexos,
       })
     },
@@ -109,37 +145,23 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
 
   const handleAprovar = async () => {
     setEnviando(true)
-    try {
-      await aprovarMutation.mutateAsync()
-    } finally {
-      setEnviando(false)
-    }
+    try { await aprovarMutation.mutateAsync() } finally { setEnviando(false) }
   }
 
   const handleReprovar = async () => {
     if (!justificativa.trim()) return
     setEnviando(true)
-    try {
-      await reprovarMutation.mutateAsync()
-    } finally {
-      setEnviando(false)
-    }
+    try { await reprovarMutation.mutateAsync() } finally { setEnviando(false) }
   }
 
   const handleReenviar = async () => {
-    if (!formCliente.trim() || !formValor || !formData) return
+    if (!formCliente.trim() || !formValor || !formData || !cuponsValidos) return
     setEnviando(true)
-    try {
-      await reenviarMutation.mutateAsync()
-    } finally {
-      setEnviando(false)
-    }
+    try { await reenviarMutation.mutateAsync() } finally { setEnviando(false) }
   }
 
-  const podeAprovarReprovar = (modo === 'financeiro' || modo === 'ti') && (
-    (modo === 'financeiro' && vinculo.status === 'validacao_financeiro') ||
-    (modo === 'ti' && vinculo.status === 'tarefa_ti')
-  )
+  const inputClass = "w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
+  const labelClass = "block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2"
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -152,7 +174,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
           <div>
             <h3 className="text-lg font-semibold text-slate-800">
               Pedido {vinculo.numero_pedido}
-              {editando && <span className="text-sm font-normal text-amber-600 ml-2">- Editando</span>}
+              {editando && <span className="text-sm font-normal text-amber-600 ml-2">— Editando</span>}
             </h3>
             <span className={`inline-block mt-1 text-xs font-medium px-2.5 py-1 rounded-full ${statusColors[vinculo.status] || 'bg-slate-100 text-slate-600'}`}>
               {statusLabels[vinculo.status] || vinculo.status}
@@ -165,7 +187,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
 
         {/* Body */}
         <div className="px-6 py-5 space-y-4">
-          {/* Justificativa de reprovacao (sempre visivel se existir) */}
+          {/* Justificativa de reprovacao */}
           {vinculo.justificativa_reprovacao && (
             <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3">
               <p className="text-xs font-medium text-red-600 mb-1">Motivo da Reprovacao</p>
@@ -176,82 +198,137 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
           {editando ? (
             /* ===== MODO EDICAO ===== */
             <div className="space-y-4">
-              {/* Franquia */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Franquia</label>
-                <select
-                  value={formFranquiaId}
-                  onChange={(e) => setFormFranquiaId(Number(e.target.value))}
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition-all bg-white"
-                >
-                  <option value="">Selecione...</option>
-                  {empresas?.map((e: any) => (
-                    <option key={e.id} value={e.id}>
-                      {e.nome_fantasia || e.razao_social}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Franquia — só mostra select para comercial */}
+              {modo !== 'franquia' && (
+                <div>
+                  <label className={labelClass}>Franquia</label>
+                  <select
+                    value={formFranquiaId}
+                    onChange={(e) => setFormFranquiaId(Number(e.target.value))}
+                    className={inputClass + ' bg-white'}
+                  >
+                    <option value="">Selecione...</option>
+                    {empresas?.map((e: any) => (
+                      <option key={e.id} value={e.id}>
+                        {e.nome_fantasia || e.razao_social}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-              {/* Cliente */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Nome do Cliente</label>
+                <label className={labelClass}>Nome do Cliente</label>
                 <input
                   value={formCliente}
                   onChange={(e) => setFormCliente(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition-all"
+                  className={inputClass}
                 />
               </div>
 
-              {/* Motivo */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Motivo</label>
+                <label className={labelClass}>Motivo</label>
                 <MotivoSelect value={formMotivo} onChange={setFormMotivo} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                {/* Valor */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Valor (R$)</label>
+                  <label className={labelClass}>Valor (R$)</label>
                   <input
                     type="number"
                     step="0.01"
                     value={formValor}
                     onChange={(e) => setFormValor(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition-all"
+                    className={inputClass}
                   />
                 </div>
-
-                {/* Data */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Data do Pedido</label>
+                  <label className={labelClass}>Data do Pedido</label>
                   <input
                     type="date"
                     value={formData}
                     onChange={(e) => setFormData(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-300 transition-all"
+                    className={inputClass}
                   />
                 </div>
               </div>
 
-              {/* Validacao */}
-              <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-3">
-                <input
-                  type="checkbox"
-                  id="edit-validacao"
-                  checked={formValidacao}
-                  onChange={(e) => setFormValidacao(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 text-slate-600 focus:ring-slate-300"
-                />
-                <label htmlFor="edit-validacao" className="text-sm text-slate-700">
-                  Necessario validacao do Financeiro
-                </label>
+              {/* Cupons */}
+              <div className="border border-slate-200 rounded-xl p-4 space-y-3 bg-slate-50">
+                <div>
+                  <label className={labelClass}>Quantos cupons serão anexados?</label>
+                  <select
+                    value={formQuantidadeCupons}
+                    onChange={(e) => setFormQuantidadeCupons(Number(e.target.value))}
+                    className={inputClass + ' bg-white'}
+                  >
+                    <option value={0}>Nenhum cupom</option>
+                    {Array.from({ length: 20 }, (_, i) => i + 1).map(n => (
+                      <option key={n} value={n}>{n} cupom{n > 1 ? 's' : ''}</option>
+                    ))}
+                  </select>
+                </div>
+                {formQuantidadeCupons > 0 && (
+                  <div className="space-y-2">
+                    {formValoresCupons.map((v, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <span className="text-xs text-slate-500 w-20 shrink-0">{i + 1}º cupom:</span>
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={v}
+                            onChange={e => {
+                              const next = [...formValoresCupons]
+                              next[i] = e.target.value
+                              setFormValoresCupons(next)
+                            }}
+                            className="w-full border border-slate-200 rounded-lg pl-10 pr-3 py-2 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
+                            placeholder="0,00"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <div className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium ${
+                      !valorTotalForm ? 'bg-slate-100 text-slate-500' :
+                      cuponsValidos ? 'bg-green-50 text-green-700 border border-green-200' :
+                      'bg-red-50 text-red-700 border border-red-200'
+                    }`}>
+                      <span>Soma dos cupons:</span>
+                      <span>R$ {somaCupons.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    {valorTotalForm > 0 && !cuponsValidos && (
+                      <div className="flex items-center gap-2 text-xs text-red-600">
+                        <AlertTriangle size={13} />
+                        A soma deve ser igual ao valor do pedido (R$ {valorTotalForm.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
+
+              {/* Validacao — só para comercial */}
+              {modo !== 'franquia' && (
+                <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-3">
+                  <input
+                    type="checkbox"
+                    id="edit-validacao"
+                    checked={formValidacao}
+                    onChange={(e) => setFormValidacao(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-slate-600 focus:ring-slate-300"
+                  />
+                  <label htmlFor="edit-validacao" className="text-sm text-slate-700">
+                    Necessario validacao do Financeiro
+                  </label>
+                </div>
+              )}
 
               {/* Anexos existentes */}
               {formAnexos.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Anexos atuais</p>
+                  <p className={labelClass}>Anexos atuais</p>
                   <div className="space-y-1">
                     {formAnexos.map((anexo, i) => (
                       <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2">
@@ -270,9 +347,8 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                 </div>
               )}
 
-              {/* Upload novos arquivos */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Adicionar Anexos</label>
+                <label className={labelClass}>Adicionar Anexos</label>
                 <label className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-slate-300 transition-colors">
                   <Upload size={16} className="text-slate-400" />
                   <span className="text-sm text-slate-400">Selecionar arquivos...</span>
@@ -282,9 +358,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                     multiple
                     className="hidden"
                     onChange={(e) => {
-                      if (e.target.files) {
-                        setNovosArquivos(prev => [...prev, ...Array.from(e.target.files!)])
-                      }
+                      if (e.target.files) setNovosArquivos(prev => [...prev, ...Array.from(e.target.files!)])
                       e.target.value = ''
                     }}
                   />
@@ -295,11 +369,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                       <div key={i} className="flex items-center gap-2 text-sm text-slate-600 bg-green-50 rounded-lg px-3 py-2">
                         <span className="text-xs text-green-600 font-medium">NOVO</span>
                         <span className="flex-1 truncate">{arq.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => setNovosArquivos(prev => prev.filter((_, idx) => idx !== i))}
-                          className="text-slate-400 hover:text-red-500"
-                        >
+                        <button type="button" onClick={() => setNovosArquivos(prev => prev.filter((_, idx) => idx !== i))} className="text-slate-400 hover:text-red-500">
                           <X size={14} />
                         </button>
                       </div>
@@ -316,15 +386,30 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                 <Campo label="Cliente" valor={vinculo.nome_cliente} />
                 <Campo label="Valor" valor={`R$ ${Number(vinculo.valor_pedido).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
                 <Campo label="Data do Pedido" valor={vinculo.data_pedido ? new Date(vinculo.data_pedido + 'T00:00:00').toLocaleDateString('pt-BR') : '—'} />
-                <Campo label="Validacao Necessaria" valor={vinculo.necessario_validacao ? 'Sim' : 'Nao'} />
-                <Campo label="Criado em" valor={vinculo.criado_em ? new Date(vinculo.criado_em).toLocaleDateString('pt-BR') : '—'} />
+                {vinculo.motivo && <Campo label="Motivo" valor={vinculo.motivo} />}
+                <Campo label="Valid. Financeiro" valor={vinculo.necessario_validacao ? 'Sim' : 'Nao'} />
               </div>
 
-              {/* Motivo */}
-              {vinculo.motivo && (
+              {/* Cupons */}
+              {vinculo.quantidade_cupons && vinculo.quantidade_cupons > 0 && (
                 <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3">
-                  <p className="text-xs font-medium text-slate-500 mb-1">Motivo</p>
-                  <p className="text-sm text-slate-700">{vinculo.motivo}</p>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+                    Cupons ({vinculo.quantidade_cupons})
+                  </p>
+                  <div className="space-y-1">
+                    {vinculo.cupons?.map((c, i) => (
+                      <div key={i} className="flex justify-between text-sm">
+                        <span className="text-slate-500">{i + 1}º cupom</span>
+                        <span className="text-slate-700 font-medium">
+                          R$ {Number(c.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between text-sm font-semibold text-slate-800 border-t border-slate-200 pt-1 mt-1">
+                      <span>Total</span>
+                      <span>R$ {Number(vinculo.valor_pedido).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -337,20 +422,12 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                       const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(anexo)
                       const url = `${API_URL}${anexo}`
                       return (
-                        <a
-                          key={i}
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <a key={i} href={url} target="_blank" rel="noopener noreferrer"
                           className="block border border-slate-200 rounded-lg overflow-hidden hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group"
                         >
                           {isImage ? (
                             <div className="relative">
-                              <img
-                                src={url}
-                                alt={`Anexo ${i + 1}`}
-                                className="w-full max-h-48 object-contain bg-slate-50"
-                              />
+                              <img src={url} alt={`Anexo ${i + 1}`} className="w-full max-h-48 object-contain bg-slate-50" />
                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
                                 <span className="opacity-0 group-hover:opacity-100 bg-white/90 text-slate-700 text-xs font-medium px-3 py-1.5 rounded-full shadow transition-opacity">
                                   Abrir em nova aba
@@ -370,7 +447,28 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                 </div>
               )}
 
-              {/* Upload de anexos ao aprovar (financeiro) */}
+              {/* Toggle necessario_financeiro — só para comercial */}
+              {podeAprovarReprovar && modo === 'comercial' && !mostrarReprovar && (
+                <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="necessario-financeiro"
+                      checked={necessarioFinanceiro}
+                      onChange={(e) => setNecessarioFinanceiro(e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-300"
+                    />
+                    <label htmlFor="necessario-financeiro" className="text-sm text-amber-800 font-medium">
+                      Enviar para validação do Financeiro antes do TI
+                    </label>
+                  </div>
+                  <p className="text-xs text-amber-600 mt-1 ml-7">
+                    {necessarioFinanceiro ? 'Irá para Financeiro → TI' : 'Irá direto para TI'}
+                  </p>
+                </div>
+              )}
+
+              {/* Upload de anexos ao aprovar — só financeiro */}
               {podeAprovarReprovar && modo === 'financeiro' && !mostrarReprovar && (
                 <div>
                   <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Anexar documentos (opcional)</p>
@@ -383,9 +481,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                       multiple
                       className="hidden"
                       onChange={(e) => {
-                        if (e.target.files) {
-                          setArquivosAprovacao(prev => [...prev, ...Array.from(e.target.files!)])
-                        }
+                        if (e.target.files) setArquivosAprovacao(prev => [...prev, ...Array.from(e.target.files!)])
                         e.target.value = ''
                       }}
                     />
@@ -396,11 +492,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                         <div key={i} className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
                           <ImageIcon size={14} className="text-green-500 shrink-0" />
                           <span className="flex-1 truncate">{arq.name}</span>
-                          <button
-                            type="button"
-                            onClick={() => setArquivosAprovacao(prev => prev.filter((_, idx) => idx !== i))}
-                            className="text-slate-400 hover:text-red-500"
-                          >
+                          <button type="button" onClick={() => setArquivosAprovacao(prev => prev.filter((_, idx) => idx !== i))} className="text-slate-400 hover:text-red-500">
                             <X size={14} />
                           </button>
                         </div>
@@ -410,27 +502,74 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                 </div>
               )}
 
-              {/* Campo justificativa para reprovar */}
+              {/* Reprovar form */}
               {podeAprovarReprovar && mostrarReprovar && (
-                <div>
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Justificativa da Reprovacao</p>
-                  <textarea
-                    value={justificativa}
-                    onChange={(e) => setJustificativa(e.target.value)}
-                    placeholder="Descreva o motivo da reprovacao..."
-                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-300 transition-all resize-none"
-                    rows={3}
-                  />
+                <div className="space-y-3">
+                  {/* Destino — financeiro pode escolher Comercial | Franquia */}
+                  {modo === 'financeiro' && (
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Enviar para</p>
+                      <div className="flex gap-2">
+                        {(['comercial', 'franquia'] as const).map(d => (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => setDestinoReprovacao(d)}
+                            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${
+                              destinoReprovacao === d
+                                ? 'bg-slate-800 text-white border-slate-800'
+                                : 'text-slate-600 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            {d === 'comercial' ? 'Comercial' : 'Franquia'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Destino — TI pode escolher Comercial | Franquia | Financeiro */}
+                  {modo === 'ti' && (
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Enviar para</p>
+                      <div className="flex gap-2">
+                        {(['comercial', 'financeiro', 'franquia'] as const).map(d => (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => setDestinoReprovacao(d)}
+                            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${
+                              destinoReprovacao === d
+                                ? 'bg-slate-800 text-white border-slate-800'
+                                : 'text-slate-600 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            {d === 'comercial' ? 'Comercial' : d === 'financeiro' ? 'Financeiro' : 'Franquia'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Justificativa</p>
+                    <textarea
+                      value={justificativa}
+                      onChange={(e) => setJustificativa(e.target.value)}
+                      placeholder="Descreva o motivo da reprovacao..."
+                      className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-300 transition-all resize-none"
+                      rows={3}
+                    />
+                  </div>
                 </div>
               )}
             </>
           )}
         </div>
 
-        {/* Footer - botoes de acao */}
+        {/* Footer */}
         <div className="px-6 py-4 border-t border-slate-100">
           {editando ? (
-            /* Botoes modo edicao */
             <div className="flex gap-3">
               <button
                 onClick={() => setEditando(false)}
@@ -440,7 +579,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
               </button>
               <button
                 onClick={handleReenviar}
-                disabled={enviando || !formCliente.trim() || !formValor || !formData}
+                disabled={enviando || !formCliente.trim() || !formValor || !formData || !cuponsValidos}
                 className="flex-1 py-2.5 px-4 rounded-xl text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 <Send size={16} />
@@ -448,7 +587,6 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
               </button>
             </div>
           ) : podeAprovarReprovar ? (
-            /* Botoes aprovar/reprovar */
             <div className="flex gap-3">
               {mostrarReprovar ? (
                 <>
@@ -488,7 +626,6 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
               )}
             </div>
           ) : podeEditar ? (
-            /* Botao editar (comercial com pedido reprovado) */
             <button
               onClick={() => setEditando(true)}
               className="w-full py-2.5 px-4 rounded-xl text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 transition-colors flex items-center justify-center gap-2"

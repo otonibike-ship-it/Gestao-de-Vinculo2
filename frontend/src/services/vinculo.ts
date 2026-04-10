@@ -10,9 +10,12 @@ export interface VinculoData {
   data_pedido: string
   motivo: string | null
   necessario_validacao: boolean
-  status: 'aberto' | 'validacao_financeiro' | 'tarefa_ti' | 'fechado'
+  quantidade_cupons: number | null
+  cupons: { valor: number }[] | null
+  status: 'aberto' | 'validacao_comercial' | 'validacao_financeiro' | 'tarefa_ti' | 'fechado'
   anexos: string[]
   justificativa_reprovacao: string | null
+  destino_reprovacao: string | null
   criado_em: string
   atualizado_em: string
 }
@@ -25,13 +28,16 @@ export interface VinculoCreatePayload {
   data_pedido: string
   motivo?: string
   necessario_validacao: boolean
+  quantidade_cupons?: number
+  cupons?: { valor: number }[]
   anexos?: string[]
 }
 
 export const vinculoService = {
-  async listar(status?: string) {
-    const params: Record<string, string> = {}
+  async listar(status?: string, franquia_id?: number) {
+    const params: Record<string, string | number> = {}
     if (status) params.status = status
+    if (franquia_id) params.franquia_id = franquia_id
     const { data } = await api.get('/vinculos', { params })
     return data as VinculoData[]
   },
@@ -46,13 +52,13 @@ export const vinculoService = {
     return data as VinculoData
   },
 
-  async aprovar(id: number, anexos: string[] = []) {
-    const { data } = await api.put(`/vinculos/${id}/aprovar`, { anexos })
+  async aprovar(id: number, anexos: string[] = [], necessario_financeiro?: boolean) {
+    const { data } = await api.put(`/vinculos/${id}/aprovar`, { anexos, necessario_financeiro })
     return data as VinculoData
   },
 
-  async reprovar(id: number, justificativa: string) {
-    const { data } = await api.put(`/vinculos/${id}/reprovar`, { justificativa })
+  async reprovar(id: number, justificativa: string, destino: string = 'franquia') {
+    const { data } = await api.put(`/vinculos/${id}/reprovar`, { justificativa, destino })
     return data as VinculoData
   },
 

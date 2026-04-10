@@ -14,7 +14,6 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def _get_perfil_str(perfil) -> str:
-    """Extrai string do perfil (funciona com Enum ou str)."""
     return perfil.value if hasattr(perfil, 'value') else str(perfil)
 
 
@@ -25,6 +24,7 @@ class UsuarioCreate(BaseModel):
     email: str
     senha: str
     perfil: str = "comercial"
+    franquia_id: Optional[int] = None
 
 
 class UsuarioUpdate(BaseModel):
@@ -32,6 +32,7 @@ class UsuarioUpdate(BaseModel):
     email: Optional[str] = None
     senha: Optional[str] = None
     perfil: Optional[str] = None
+    franquia_id: Optional[int] = None
 
 
 class UsuarioResponse(BaseModel):
@@ -39,6 +40,7 @@ class UsuarioResponse(BaseModel):
     nome: str
     email: str
     perfil: str
+    franquia_id: Optional[int] = None
     ativo: bool
 
 
@@ -51,10 +53,9 @@ async def listar_usuarios(db: AsyncSession = Depends(get_db)):
         usuarios = result.scalars().all()
         return [
             UsuarioResponse(
-                id=u.id,
-                nome=u.nome,
-                email=u.email,
+                id=u.id, nome=u.nome, email=u.email,
                 perfil=_get_perfil_str(u.perfil),
+                franquia_id=u.franquia_id,
                 ativo=u.ativo,
             )
             for u in usuarios
@@ -68,32 +69,30 @@ async def listar_usuarios(db: AsyncSession = Depends(get_db)):
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def criar_usuario(payload: UsuarioCreate, db: AsyncSession = Depends(get_db)):
     try:
-        # Verificar email unico
         existing = await db.execute(select(Usuario).where(Usuario.email == payload.email))
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Email ja cadastrado")
 
-        # Validar perfil
         try:
             perfil_enum = PerfilUsuario(payload.perfil)
         except ValueError:
-            raise HTTPException(status_code=400, detail=f"Perfil invalido: {payload.perfil}. Use: comercial, financeiro, ti, admin")
+            raise HTTPException(status_code=400, detail=f"Perfil invalido: {payload.perfil}")
 
         usuario = Usuario(
             nome=payload.nome,
             email=payload.email,
             senha_hash=pwd_context.hash(payload.senha),
             perfil=perfil_enum,
+            franquia_id=payload.franquia_id,
             ativo=True,
         )
         db.add(usuario)
         await db.flush()
         await db.refresh(usuario)
         return UsuarioResponse(
-            id=usuario.id,
-            nome=usuario.nome,
-            email=usuario.email,
+            id=usuario.id, nome=usuario.nome, email=usuario.email,
             perfil=_get_perfil_str(usuario.perfil),
+            franquia_id=usuario.franquia_id,
             ativo=usuario.ativo,
         )
     except HTTPException:
@@ -115,7 +114,6 @@ async def atualizar_usuario(usuario_id: int, payload: UsuarioUpdate, db: AsyncSe
         if payload.nome is not None:
             usuario.nome = payload.nome
         if payload.email is not None:
-            # Verificar email unico
             existing = await db.execute(
                 select(Usuario).where(Usuario.email == payload.email, Usuario.id != usuario_id)
             )
@@ -129,14 +127,15 @@ async def atualizar_usuario(usuario_id: int, payload: UsuarioUpdate, db: AsyncSe
                 usuario.perfil = PerfilUsuario(payload.perfil)
             except ValueError:
                 raise HTTPException(status_code=400, detail=f"Perfil invalido: {payload.perfil}")
+        if payload.franquia_id is not None:
+            usuario.franquia_id = payload.franquia_id
 
         await db.flush()
         await db.refresh(usuario)
         return UsuarioResponse(
-            id=usuario.id,
-            nome=usuario.nome,
-            email=usuario.email,
+            id=usuario.id, nome=usuario.nome, email=usuario.email,
             perfil=_get_perfil_str(usuario.perfil),
+            franquia_id=usuario.franquia_id,
             ativo=usuario.ativo,
         )
     except HTTPException:

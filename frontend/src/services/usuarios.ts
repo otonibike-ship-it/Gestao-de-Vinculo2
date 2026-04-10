@@ -5,6 +5,7 @@ export interface UsuarioData {
   nome: string
   email: string
   perfil: string
+  franquia_id: number | null
   ativo: boolean
 }
 
@@ -13,6 +14,7 @@ export interface UsuarioCreatePayload {
   email: string
   senha: string
   perfil: string
+  franquia_id?: number | null
 }
 
 export interface UsuarioUpdatePayload {
@@ -20,6 +22,7 @@ export interface UsuarioUpdatePayload {
   email?: string
   senha?: string
   perfil?: string
+  franquia_id?: number | null
 }
 
 export const usuarioService = {

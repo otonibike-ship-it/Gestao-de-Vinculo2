@@ -31,10 +31,11 @@ class AuthService:
             return None
 
         perfil_str = usuario.perfil.value if hasattr(usuario.perfil, 'value') else str(usuario.perfil)
-        access = self._criar_token(
-            {"sub": str(usuario.id), "email": usuario.email, "perfil": perfil_str},
-            timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
-        )
+        token_data = {"sub": str(usuario.id), "email": usuario.email, "perfil": perfil_str}
+        if usuario.franquia_id:
+            token_data["franquia_id"] = usuario.franquia_id
+
+        access = self._criar_token(token_data, timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES))
         refresh = self._criar_token(
             {"sub": str(usuario.id), "type": "refresh"},
             timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
@@ -45,6 +46,7 @@ class AuthService:
             "token_type": "bearer",
             "perfil": perfil_str,
             "nome": usuario.nome,
+            "franquia_id": usuario.franquia_id,
         }
 
     async def renovar_token(self, refresh_token: str) -> Optional[Token]:

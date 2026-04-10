@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum, ForeignKey
 from sqlalchemy.sql import func
 from app.core.database import Base
 import enum
@@ -9,6 +9,7 @@ class PerfilUsuario(str, enum.Enum):
     financeiro = "financeiro"
     ti = "ti"
     admin = "admin"
+    franquia = "franquia"
 
 
 class Usuario(Base):
@@ -19,6 +20,7 @@ class Usuario(Base):
     email = Column(String(200), unique=True, nullable=False, index=True)
     senha_hash = Column(String(255), nullable=False)
     perfil = Column(Enum(PerfilUsuario), nullable=False, default=PerfilUsuario.comercial)
+    franquia_id = Column(Integer, ForeignKey("empresas.id", ondelete="SET NULL"), nullable=True)
     ativo = Column(Boolean, default=True)
     criado_em = Column(DateTime(timezone=True), server_default=func.now())
     atualizado_em = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

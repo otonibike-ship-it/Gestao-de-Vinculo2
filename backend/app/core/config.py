@@ -26,6 +26,19 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
+    # SMTP (Google Gmail ou outro provedor)
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_TLS: bool = True
+    SMTP_FROM_NAME: str = "Gestão de Vínculos"
+
+    # Emails de destino para notificações (separados por vírgula)
+    EMAIL_COMERCIAL: str = ""
+    EMAIL_FINANCEIRO: str = ""
+    EMAIL_TI: str = ""
+
     # Storage
     AWS_ACCESS_KEY_ID: str = ""
     AWS_SECRET_ACCESS_KEY: str = ""

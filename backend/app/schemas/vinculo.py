@@ -7,9 +7,14 @@ from enum import Enum
 
 class StatusVinculo(str, Enum):
     aberto = "aberto"
+    validacao_comercial = "validacao_comercial"
     validacao_financeiro = "validacao_financeiro"
     tarefa_ti = "tarefa_ti"
     fechado = "fechado"
+
+
+class CupomItem(BaseModel):
+    valor: Decimal
 
 
 class VinculoCreate(BaseModel):
@@ -20,6 +25,8 @@ class VinculoCreate(BaseModel):
     data_pedido: date
     motivo: Optional[str] = None
     necessario_validacao: bool = False
+    quantidade_cupons: Optional[int] = None
+    cupons: Optional[list[CupomItem]] = None
     anexos: list[str] = []
 
 
@@ -33,9 +40,12 @@ class VinculoResponse(BaseModel):
     data_pedido: date
     motivo: Optional[str] = None
     necessario_validacao: bool
+    quantidade_cupons: Optional[int] = None
+    cupons: Optional[list] = None
     status: StatusVinculo
     anexos: list[str] = []
     justificativa_reprovacao: Optional[str] = None
+    destino_reprovacao: Optional[str] = None
     criado_em: datetime
     atualizado_em: datetime
 
@@ -45,10 +55,12 @@ class VinculoResponse(BaseModel):
 
 class AprovarRequest(BaseModel):
     anexos: list[str] = []
+    necessario_financeiro: Optional[bool] = None  # comercial pode sobrescrever
 
 
 class ReprovarRequest(BaseModel):
     justificativa: str
+    destino: str = "franquia"  # franquia | comercial | financeiro
 
 
 class ReenviarRequest(BaseModel):
@@ -58,4 +70,6 @@ class ReenviarRequest(BaseModel):
     data_pedido: date
     motivo: Optional[str] = None
     necessario_validacao: bool = False
+    quantidade_cupons: Optional[int] = None
+    cupons: Optional[list[CupomItem]] = None
     anexos: list[str] = []
