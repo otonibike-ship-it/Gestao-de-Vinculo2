@@ -72,6 +72,7 @@ export default function AdminPage() {
   const [buscaFranq, setBuscaFranq] = useState('')
   const [showFormFranq, setShowFormFranq] = useState(false)
   const [editFranq, setEditFranq] = useState<EmpresaData | null>(null)
+  const [editFranqUserId, setEditFranqUserId] = useState<number | null>(null)
   const [fNome, setFNome] = useState('')
   const [fCnpj, setFCnpj] = useState('')
   const [fEmail, setFEmail] = useState('')
@@ -152,7 +153,7 @@ export default function AdminPage() {
   })
 
   const editarFranqMutation = useMutation({
-    mutationFn: async (payload: { id: number; nome: string; cnpj: string; email: string; senha: string }) => {
+    mutationFn: async (payload: { id: number; userId: number | null; nome: string; cnpj: string; email: string; senha: string }) => {
       // 1. Atualiza a empresa
       await api.put(`/empresas/${payload.id}`, {
         razao_social: payload.nome,
@@ -160,12 +161,21 @@ export default function AdminPage() {
         cnpj: payload.cnpj,
         email: payload.email,
       })
-      // 2. Atualiza o usuário vinculado (email e/ou senha)
-      const usuarioVinculado = usuariosFranquia?.find(u => u.franquia_id === payload.id)
-      if (usuarioVinculado) {
+      // 2. Atualiza ou cria o usuário vinculado
+      if (payload.userId) {
+        // Usuário já existe — atualiza
         const updatePayload: any = { email: payload.email, nome: payload.nome }
         if (payload.senha) updatePayload.senha = payload.senha
-        await api.put(`/usuarios/${usuarioVinculado.id}`, updatePayload)
+        await api.put(`/usuarios/${payload.userId}`, updatePayload)
+      } else if (payload.senha) {
+        // Franquia sem login — cria agora
+        await api.post('/usuarios', {
+          nome: payload.nome,
+          email: payload.email,
+          senha: payload.senha,
+          perfil: 'franquia',
+          franquia_id: payload.id,
+        })
       }
     },
     onSuccess: () => {
@@ -173,7 +183,15 @@ export default function AdminPage() {
       queryClient.invalidateQueries({ queryKey: ['usuarios'] })
       resetFormFranq()
     },
-    onError: (e: any) => setErroFranq(e?.response?.data?.detail || `Erro ${e?.response?.status || 'de rede'}`),
+    onError: (e: any) => {
+      const detail = e?.response?.data?.detail
+      const status = e?.response?.status
+      if (status === 504) {
+        setErroFranq('Servidor sem resposta (504). Aguarde um momento e tente novamente.')
+      } else {
+        setErroFranq(detail || `Erro ${status || 'de rede'}: ${e.message || ''}`)
+      }
+    },
   })
 
   const deletarFranqMutation = useMutation({
@@ -205,7 +223,7 @@ export default function AdminPage() {
   }
 
   const resetFormFranq = () => {
-    setShowFormFranq(false); setEditFranq(null)
+    setShowFormFranq(false); setEditFranq(null); setEditFranqUserId(null)
     setFNome(''); setFCnpj(''); setFEmail(''); setFSenha(''); setErroFranq('')
   }
 
@@ -220,6 +238,9 @@ export default function AdminPage() {
     setFCnpj(f.cnpj || '')
     setFEmail(f.email || '')
     setFSenha('')
+    // Armazena o ID do usuário vinculado para usar na mutation
+    const userVinc = usuariosFranquia?.find(u => u.franquia_id === f.id)
+    setEditFranqUserId(userVinc?.id ?? null)
     setShowFormFranq(true); setErroFranq('')
   }
 
@@ -244,7 +265,7 @@ export default function AdminPage() {
     if (!editFranq && !fSenha.trim()) { setErroFranq('Senha é obrigatória'); return }
 
     if (editFranq) {
-      editarFranqMutation.mutate({ id: editFranq.id, nome: fNome.trim(), cnpj: fCnpj.trim(), email: fEmail.trim(), senha: fSenha })
+      editarFranqMutation.mutate({ id: editFranq.id, userId: editFranqUserId, nome: fNome.trim(), cnpj: fCnpj.trim(), email: fEmail.trim(), senha: fSenha })
     } else {
       criarFranqMutation.mutate({ nome: fNome.trim(), cnpj: fCnpj.trim(), email: fEmail.trim(), senha: fSenha })
     }
@@ -422,7 +443,9 @@ export default function AdminPage() {
             )}
             {editFranq && (
               <p className="text-xs text-slate-400 mt-2">
-                Deixe a senha em branco para não alterar. O e-mail de acesso também será atualizado.
+                {editFranqUserId
+                  ? 'Deixe a senha em branco para não alterar. O e-mail de acesso também será atualizado.'
+                  : 'Esta franquia não tem login cadastrado. Informe uma senha para criar o acesso agora.'}
               </p>
             )}
           </div>
