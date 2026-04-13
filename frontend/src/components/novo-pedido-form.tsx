@@ -69,6 +69,7 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
     if (!nomeCliente.trim()) { setErro('Nome do cliente é obrigatório'); return }
     if (!valorPedido || parseFloat(valorPedido) <= 0) { setErro('Valor do pedido inválido'); return }
     if (!dataPedido) { setErro('Data do pedido é obrigatória'); return }
+    if (arquivos.length === 0) { setErro('Anexe pelo menos um arquivo'); return }
 
     if (quantidadeCupons > 0) {
       if (valoresCupons.some(v => !v || parseFloat(v) <= 0)) {
@@ -81,11 +82,9 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
 
     setEnviando(true)
     try {
-      const anexoUrls: string[] = []
-      for (const arq of arquivos) {
-        const result = await uploadService.upload(arq)
-        anexoUrls.push(result.url)
-      }
+      // Upload em paralelo — mais rápido que sequencial
+      const resultados = await Promise.all(arquivos.map(arq => uploadService.upload(arq)))
+      const anexoUrls = resultados.map(r => r.url)
 
       const cuponsList = quantidadeCupons > 0
         ? valoresCupons.map(v => ({ valor: parseFloat(v) }))
@@ -111,6 +110,8 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
       const status = e?.response?.status
       if (status === 422) {
         setErro('Dados inválidos. Verifique os campos e tente novamente.')
+      } else if (status === 504 || status === 502) {
+        setErro('Servidor sem resposta (504). Tente novamente em alguns instantes.')
       } else if (!status) {
         setErro('Erro de conexão. Verifique sua internet e tente novamente.')
       } else {
@@ -287,12 +288,20 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
             )}
           </div>
 
-          {/* Anexos */}
+          {/* Anexos obrigatório */}
           <div>
-            <label className={labelClass}>Anexos (opcional)</label>
-            <label className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:border-slate-300 transition-colors">
-              <Upload size={16} className="text-slate-400" />
-              <span className="text-sm text-slate-400">Selecionar arquivos...</span>
+            <label className={labelClass}>
+              Anexos <span className="text-red-400 normal-case font-normal">(obrigatório)</span>
+            </label>
+            <label className={`flex items-center gap-2 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
+              arquivos.length === 0 ? 'border-slate-300 hover:border-slate-400' : 'border-green-300 hover:border-green-400'
+            }`}>
+              <Upload size={16} className={arquivos.length === 0 ? 'text-slate-400' : 'text-green-500'} />
+              <span className={`text-sm ${arquivos.length === 0 ? 'text-slate-400' : 'text-green-600 font-medium'}`}>
+                {arquivos.length === 0
+                  ? 'Selecionar arquivos...'
+                  : `${arquivos.length} arquivo${arquivos.length > 1 ? 's' : ''} selecionado${arquivos.length > 1 ? 's' : ''} — clique para adicionar mais`}
+              </span>
               <input
                 type="file"
                 accept=".jpg,.jpeg,.png,.gif,.webp,.pdf"
@@ -309,9 +318,11 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
             {arquivos.length > 0 && (
               <div className="mt-2 space-y-1">
                 {arquivos.map((arq, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
+                  <div key={i} className="flex items-center gap-2 text-sm text-slate-600 bg-green-50 border border-green-100 rounded-lg px-3 py-2">
+                    <Upload size={13} className="text-green-500 shrink-0" />
                     <span className="flex-1 truncate">{arq.name}</span>
-                    <button type="button" onClick={() => setArquivos(prev => prev.filter((_, idx) => idx !== i))} className="text-slate-400 hover:text-red-500">
+                    <span className="text-xs text-slate-400 shrink-0">{(arq.size / 1024).toFixed(0)} KB</span>
+                    <button type="button" onClick={() => setArquivos(prev => prev.filter((_, idx) => idx !== i))} className="text-slate-400 hover:text-red-500 shrink-0">
                       <X size={14} />
                     </button>
                   </div>
@@ -337,10 +348,10 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
             </button>
             <button
               type="submit"
-              disabled={enviando || (quantidadeCupons > 0 && !cuponsValidos)}
+              disabled={enviando || (quantidadeCupons > 0 && !cuponsValidos) || arquivos.length === 0}
               className="flex-1 py-3 px-4 rounded-xl text-sm font-medium text-white bg-slate-800 hover:bg-slate-900 transition-colors disabled:opacity-50"
             >
-              {enviando ? 'Salvando...' : 'Criar Pedido'}
+              {enviando ? 'Enviando...' : 'Criar Pedido'}
             </button>
           </div>
         </form>

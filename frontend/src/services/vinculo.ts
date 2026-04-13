@@ -76,8 +76,8 @@ export const uploadService = {
   async upload(file: File) {
     const formData = new FormData()
     formData.append('file', file)
-    // Não definir Content-Type manualmente: o axios precisa gerar o boundary automaticamente
-    const { data } = await api.post('/upload', formData)
+    // timeout de 2 minutos — arquivos grandes podem demorar no upload
+    const { data } = await api.post('/upload', formData, { timeout: 120000 })
     return data as { filename: string; url: string }
   },
 }
