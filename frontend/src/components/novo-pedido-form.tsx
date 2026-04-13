@@ -26,7 +26,6 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
   const [motivo, setMotivo] = useState('')
   const [valorPedido, setValorPedido] = useState('')
   const [dataPedido, setDataPedido] = useState('')
-  const [necessarioValidacao, setNecessarioValidacao] = useState(false)
   const [arquivos, setArquivos] = useState<File[]>([])
 
   // Cupons
@@ -99,7 +98,7 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
         valor_pedido: parseFloat(valorPedido),
         data_pedido: dataPedido,
         motivo: motivo || undefined,
-        necessario_validacao: necessarioValidacao,
+        necessario_validacao: false, // comercial decide no momento da aprovação
         quantidade_cupons: quantidadeCupons > 0 ? quantidadeCupons : undefined,
         cupons: cuponsList,
         anexos: anexoUrls,
@@ -108,7 +107,15 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
       queryClient.invalidateQueries({ queryKey: ['vinculos'] })
       router.push(voltarPara)
     } catch (e: any) {
-      setErro(e?.response?.data?.detail || 'Erro ao criar pedido')
+      const detail = e?.response?.data?.detail
+      const status = e?.response?.status
+      if (status === 422) {
+        setErro('Dados inválidos. Verifique os campos e tente novamente.')
+      } else if (!status) {
+        setErro('Erro de conexão. Verifique sua internet e tente novamente.')
+      } else {
+        setErro(detail || `Erro ${status} ao criar pedido`)
+      }
     } finally {
       setEnviando(false)
     }
@@ -279,25 +286,6 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
               </div>
             )}
           </div>
-
-          {/* Validação Financeiro — só para não-franquia */}
-          {perfil !== 'franquia' && (
-            <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-3">
-              <input
-                type="checkbox"
-                id="validacao"
-                checked={necessarioValidacao}
-                onChange={e => setNecessarioValidacao(e.target.checked)}
-                className="w-4 h-4 rounded border-slate-300 text-slate-600 focus:ring-slate-300"
-              />
-              <label htmlFor="validacao" className="text-sm text-slate-700">
-                Necessário validação do Financeiro
-              </label>
-              <span className="text-xs text-slate-400 ml-auto">
-                Se marcado, irá para o Financeiro antes do TI
-              </span>
-            </div>
-          )}
 
           {/* Anexos */}
           <div>

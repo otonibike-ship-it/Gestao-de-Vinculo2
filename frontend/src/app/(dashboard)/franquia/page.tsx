@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search, Plus, Store, AlertCircle } from 'lucide-react'
 import { vinculoService, VinculoData } from '@/services/vinculo'
@@ -27,12 +27,17 @@ const statusColors: Record<string, string> = {
 export default function FranquiaPage() {
   const [busca, setBusca] = useState('')
   const [selecionado, setSelecionado] = useState<VinculoData | null>(null)
-  const franquiaId = authService.getFranquiaId()
+  const [franquiaId, setFranquiaId] = useState<number | null>(null)
+
+  // Lê o franquiaId apenas no cliente (localStorage não existe no servidor)
+  useEffect(() => {
+    setFranquiaId(authService.getFranquiaId())
+  }, [])
 
   const { data, isLoading } = useQuery({
     queryKey: ['vinculos', 'franquia', franquiaId],
-    queryFn: () => vinculoService.listar(undefined, franquiaId ?? undefined),
-    enabled: !!franquiaId,
+    queryFn: () => vinculoService.listar(undefined, franquiaId!),
+    enabled: franquiaId !== null,
   })
 
   const filtrados = data?.filter((v) => {
