@@ -72,12 +72,27 @@ export const vinculoService = {
   },
 }
 
+const CLOUDINARY_CLOUD_NAME = 'dbzpohsfm'
+const CLOUDINARY_UPLOAD_PRESET = 'gestao-vinculo'
+
 export const uploadService = {
   async upload(file: File) {
     const formData = new FormData()
     formData.append('file', file)
-    // timeout de 2 minutos — arquivos grandes podem demorar no upload
-    const { data } = await api.post('/upload', formData, { timeout: 120000 })
-    return data as { filename: string; url: string }
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET)
+    formData.append('folder', 'gestao-vinculo')
+
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
+      { method: 'POST', body: formData }
+    )
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err?.error?.message || `Cloudinary error ${res.status}`)
+    }
+
+    const data = await res.json()
+    return { filename: data.public_id as string, url: data.secure_url as string }
   },
 }
