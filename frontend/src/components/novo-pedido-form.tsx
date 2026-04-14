@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Upload, X, AlertTriangle } from 'lucide-react'
@@ -34,6 +34,7 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
 
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { data: empresas } = useQuery({
     queryKey: ['empresas'],
@@ -293,28 +294,35 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
             <label className={labelClass}>
               Anexos <span className="text-red-400 normal-case font-normal">(obrigatório)</span>
             </label>
-            <label className={`flex items-center gap-2 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
-              arquivos.length === 0 ? 'border-slate-300 hover:border-slate-400' : 'border-green-300 hover:border-green-400'
-            }`}>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className={`w-full flex items-center gap-2 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${
+                arquivos.length === 0 ? 'border-slate-300 hover:border-slate-400' : 'border-green-300 hover:border-green-400'
+              }`}
+            >
               <Upload size={16} className={arquivos.length === 0 ? 'text-slate-400' : 'text-green-500'} />
               <span className={`text-sm ${arquivos.length === 0 ? 'text-slate-400' : 'text-green-600 font-medium'}`}>
                 {arquivos.length === 0
                   ? 'Selecionar arquivos...'
                   : `${arquivos.length} arquivo${arquivos.length > 1 ? 's' : ''} selecionado${arquivos.length > 1 ? 's' : ''} — clique para adicionar mais`}
               </span>
-              <input
-                type="file"
-                accept=".jpg,.jpeg,.png,.gif,.webp,.pdf"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  if (e.target.files) {
-                    setArquivos(prev => [...prev, ...Array.from(e.target.files!)])
-                  }
-                  e.target.value = ''
-                }}
-              />
-            </label>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,.gif,.webp,.pdf"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const files = e.target.files
+                if (files && files.length > 0) {
+                  const lista = Array.from(files)
+                  setArquivos(prev => [...prev, ...lista])
+                }
+                e.target.value = ''
+              }}
+            />
             {arquivos.length > 0 && (
               <div className="mt-2 space-y-1">
                 {arquivos.map((arq, i) => (

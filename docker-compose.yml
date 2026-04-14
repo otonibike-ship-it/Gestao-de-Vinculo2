@@ -36,6 +36,9 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - JWT_SECRET=super-secret-key-change-in-production
       - ENVIRONMENT=production
+      - CLOUDINARY_CLOUD_NAME=dbzpohsfm
+      - CLOUDINARY_API_KEY=284889976331793
+      - CLOUDINARY_API_SECRET=kD7muTf0DKojnKGue4FyA9h5gPs
     depends_on:
       postgres:
         condition: service_healthy

@@ -42,18 +42,22 @@ export const authService = {
   },
 
   isLoggedIn() {
+    if (typeof window === 'undefined') return false
     return !!localStorage.getItem('access_token')
   },
 
   getPerfil(): Perfil {
+    if (typeof window === 'undefined') return 'comercial'
     return (localStorage.getItem('perfil') as Perfil) || 'comercial'
   },
 
   getNome(): string {
+    if (typeof window === 'undefined') return 'Usuário'
     return localStorage.getItem('nome') || 'Usuário'
   },
 
   getFranquiaId(): number | null {
+    if (typeof window === 'undefined') return null
     const id = localStorage.getItem('franquia_id')
     return id ? Number(id) : null
   },

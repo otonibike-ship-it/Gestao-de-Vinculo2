@@ -1,11 +1,16 @@
 import os
-import uuid
+import cloudinary
+import cloudinary.uploader
 from fastapi import APIRouter, UploadFile, File, HTTPException
 
 router = APIRouter()
 
-UPLOAD_DIR = "/app/uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME", ""),
+    api_key=os.environ.get("CLOUDINARY_API_KEY", ""),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET", ""),
+    secure=True,
+)
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf"}
 MAX_SIZE = 10 * 1024 * 1024  # 10MB
@@ -21,10 +26,13 @@ async def upload_file(file: UploadFile = File(...)):
     if len(content) > MAX_SIZE:
         raise HTTPException(status_code=400, detail="Arquivo muito grande (máx. 10MB)")
 
-    filename = f"{uuid.uuid4().hex}{ext}"
-    filepath = os.path.join(UPLOAD_DIR, filename)
+    try:
+        result = cloudinary.uploader.upload(
+            content,
+            folder="gestao-vinculo",
+            resource_type="auto",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro no upload: {str(e)}")
 
-    with open(filepath, "wb") as f:
-        f.write(content)
-
-    return {"filename": filename, "url": f"/uploads/{filename}"}
+    return {"filename": result["public_id"], "url": result["secure_url"]}
