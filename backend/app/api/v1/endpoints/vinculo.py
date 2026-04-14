@@ -38,6 +38,11 @@ async def _enrich(v: Vinculo, db: AsyncSession) -> dict:
     }
 
 
+@router.post("/teste-ping")
+async def teste_ping():
+    return {"ok": True}
+
+
 @router.get("")
 async def listar_vinculos(
     status_filter: Optional[str] = Query(None, alias="status"),
