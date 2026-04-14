@@ -31,6 +31,7 @@ async def upload_file(file: UploadFile = File(...)):
             content,
             folder="gestao-vinculo",
             resource_type="auto",
+            timeout=30,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro no upload: {str(e)}")
