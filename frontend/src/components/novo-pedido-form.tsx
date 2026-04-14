@@ -16,12 +16,12 @@ interface Props {
 export default function NovoPedidoForm({ voltarPara }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const perfil = authService.getPerfil()
-  const franquiaIdUsuario = authService.getFranquiaId()
+  const [perfil, setPerfil] = useState<string>('comercial')
+  const [franquiaIdUsuario, setFranquiaIdUsuario] = useState<number | null>(null)
 
   // Campos básicos
   const [numeroPedido, setNumeroPedido] = useState('')
-  const [franquiaId, setFranquiaId] = useState<number>(franquiaIdUsuario ?? 0)
+  const [franquiaId, setFranquiaId] = useState<number>(0)
   const [nomeCliente, setNomeCliente] = useState('')
   const [motivo, setMotivo] = useState('')
   const [valorPedido, setValorPedido] = useState('')
@@ -35,6 +35,15 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Lê localStorage apenas no cliente (não existe no servidor)
+  useEffect(() => {
+    const p = authService.getPerfil()
+    const id = authService.getFranquiaId()
+    setPerfil(p)
+    setFranquiaIdUsuario(id)
+    if (id) setFranquiaId(id)
+  }, [])
 
   const { data: empresas } = useQuery({
     queryKey: ['empresas'],
