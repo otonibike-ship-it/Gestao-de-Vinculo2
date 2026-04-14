@@ -68,6 +68,7 @@ async def obter_vinculo(vinculo_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def criar_vinculo(payload: VinculoCreate, db: AsyncSession = Depends(get_db)):
+    logger.info("POST /vinculos recebido: numero_pedido=%s franquia_id=%s", payload.numero_pedido, payload.franquia_id)
     if not payload.franquia_id:
         raise HTTPException(status_code=422, detail="franquia_id é obrigatório")
 
