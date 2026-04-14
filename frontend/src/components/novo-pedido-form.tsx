@@ -51,7 +51,7 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
       const res = await api.get('/empresas')
       return res.data as { id: number; razao_social: string; nome_fantasia: string | null }[]
     },
-    enabled: perfil !== 'franquia', // franquia já sabe sua própria empresa
+    enabled: true,
   })
 
   // Atualiza array de valores quando muda quantidade
