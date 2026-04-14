@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from typing import Optional
 from app.core.database import get_db
 from app.models.vinculo import Vinculo, StatusVinculo
@@ -64,7 +65,14 @@ async def obter_vinculo(vinculo_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def criar_vinculo(payload: VinculoCreate, db: AsyncSession = Depends(get_db)):
-    # Sempre inicia em validacao_comercial (fluxo: franquia → comercial → financeiro? → TI → fechado)
+    if not payload.franquia_id:
+        raise HTTPException(status_code=422, detail="franquia_id é obrigatório")
+
+    # Verifica se franquia existe
+    emp = await db.scalar(select(Empresa).where(Empresa.id == payload.franquia_id))
+    if not emp:
+        raise HTTPException(status_code=422, detail=f"Franquia {payload.franquia_id} não encontrada")
+
     vinculo = Vinculo(
         numero_pedido=payload.numero_pedido,
         franquia_id=payload.franquia_id,
@@ -79,7 +87,13 @@ async def criar_vinculo(payload: VinculoCreate, db: AsyncSession = Depends(get_d
         anexos=payload.anexos,
     )
     db.add(vinculo)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError as e:
+        await db.rollback()
+        if "numero_pedido" in str(e.orig):
+            raise HTTPException(status_code=422, detail=f"Número de pedido '{payload.numero_pedido}' já existe")
+        raise HTTPException(status_code=422, detail="Erro de integridade ao salvar pedido")
     await db.refresh(vinculo)
     return await _enrich(vinculo, db)
 
