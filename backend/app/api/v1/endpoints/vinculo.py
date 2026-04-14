@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -7,6 +8,8 @@ from app.core.database import get_db
 from app.models.vinculo import Vinculo, StatusVinculo
 from app.models.pessoa import Empresa
 from app.schemas.vinculo import VinculoCreate, VinculoResponse, AprovarRequest, ReprovarRequest, ReenviarRequest
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -89,13 +92,16 @@ async def criar_vinculo(payload: VinculoCreate, db: AsyncSession = Depends(get_d
     db.add(vinculo)
     try:
         await db.flush()
+        await db.refresh(vinculo)
+        return await _enrich(vinculo, db)
     except IntegrityError as e:
-        await db.rollback()
+        logger.error("IntegrityError ao criar vinculo: %s", str(e.orig))
         if "numero_pedido" in str(e.orig):
             raise HTTPException(status_code=422, detail=f"Número de pedido '{payload.numero_pedido}' já existe")
         raise HTTPException(status_code=422, detail="Erro de integridade ao salvar pedido")
-    await db.refresh(vinculo)
-    return await _enrich(vinculo, db)
+    except Exception as e:
+        logger.error("Erro inesperado ao criar vinculo: %s", str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/{vinculo_id}/aprovar")
