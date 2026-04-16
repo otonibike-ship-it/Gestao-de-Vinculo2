@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -7,7 +8,9 @@ from typing import Optional
 from app.core.database import get_db
 from app.models.vinculo import Vinculo, StatusVinculo
 from app.models.pessoa import Empresa
+from app.models.usuario import Usuario, PerfilUsuario
 from app.schemas.vinculo import VinculoCreate, VinculoResponse, AprovarRequest, ReprovarRequest, ReenviarRequest
+from app.services import email as email_svc
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +133,13 @@ async def criar_vinculo(payload: VinculoCreate, db: AsyncSession = Depends(get_d
     try:
         await db.flush()
         await db.refresh(vinculo)
-        return await _enrich(vinculo, db)
+        result = await _enrich(vinculo, db)
+        # Disparo de email em background (não bloqueia resposta)
+        franquia_nome = result.get("franquia_nome", "")
+        asyncio.create_task(email_svc.notificar_novo_pedido(
+            db, payload.numero_pedido, payload.nome_cliente, franquia_nome
+        ))
+        return result
     except IntegrityError as e:
         logger.error("IntegrityError ao criar vinculo: %s", str(e.orig))
         if "numero_pedido" in str(e.orig):
@@ -175,7 +184,27 @@ async def aprovar_vinculo(vinculo_id: int, payload: AprovarRequest, db: AsyncSes
     vinculo.destino_reprovacao = None
     await db.flush()
     await db.refresh(vinculo)
-    return await _enrich(vinculo, db)
+    result = await _enrich(vinculo, db)
+
+    # Email em background conforme destino
+    franquia_nome = result.get("franquia_nome", "")
+    numero = vinculo.numero_pedido
+    nome_cli = vinculo.nome_cliente
+    if vinculo.status == StatusVinculo.validacao_financeiro:
+        asyncio.create_task(email_svc.notificar_aprovado_financeiro(db, numero, nome_cli, franquia_nome))
+    elif vinculo.status == StatusVinculo.tarefa_ti:
+        asyncio.create_task(email_svc.notificar_aprovado_ti(db, numero, nome_cli, franquia_nome))
+    elif vinculo.status == StatusVinculo.fechado:
+        # Busca email da franquia
+        u = await db.scalar(select(Usuario).where(
+            Usuario.franquia_id == vinculo.franquia_id,
+            Usuario.perfil == PerfilUsuario.franquia,
+            Usuario.ativo == True,
+        ))
+        if u:
+            asyncio.create_task(email_svc.notificar_vinculado(db, numero, nome_cli, u.email))
+
+    return result
 
 
 @router.put("/{vinculo_id}/reprovar")
@@ -197,7 +226,29 @@ async def reprovar_vinculo(vinculo_id: int, payload: ReprovarRequest, db: AsyncS
     vinculo.destino_reprovacao = payload.destino
     await db.flush()
     await db.refresh(vinculo)
-    return await _enrich(vinculo, db)
+    result = await _enrich(vinculo, db)
+
+    # Email conforme destino da reprovação
+    numero = vinculo.numero_pedido
+    motivo = payload.justificativa
+    if payload.destino == "franquia":
+        u = await db.scalar(select(Usuario).where(
+            Usuario.franquia_id == vinculo.franquia_id,
+            Usuario.perfil == PerfilUsuario.franquia,
+            Usuario.ativo == True,
+        ))
+        if u:
+            asyncio.create_task(email_svc.notificar_reprovado(db, numero, motivo, u.email))
+    else:
+        # destino = comercial
+        from app.models.configuracao import Configuracao
+        email_comercial = await db.scalar(
+            select(Configuracao.valor).where(Configuracao.chave == "email_comercial")
+        )
+        if email_comercial:
+            asyncio.create_task(email_svc.notificar_reprovado(db, numero, motivo, email_comercial))
+
+    return result
 
 
 @router.put("/{vinculo_id}/reenviar")

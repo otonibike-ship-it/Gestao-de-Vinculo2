@@ -10,6 +10,7 @@ import {
   Shield,
   LogOut,
   Store,
+  Settings,
 } from 'lucide-react'
 import { authService, Perfil } from '@/services/auth'
 import { useEffect, useState } from 'react'
@@ -21,6 +22,7 @@ const allNavItems = [
   { href: '/franquia', label: 'Meus Pedidos', icon: Store, perfis: ['franquia'] },
   { href: '/empresas', label: 'Franquias', icon: Building2, perfis: ['comercial', 'financeiro', 'ti', 'admin'] },
   { href: '/admin', label: 'Admin', icon: Shield, perfis: ['admin'] },
+  { href: '/configuracoes', label: 'Configurações', icon: Settings, perfis: ['admin'] },
 ]
 
 const perfilLabels: Record<Perfil, string> = {

@@ -1,0 +1,93 @@
+import smtplib
+import logging
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from app.models.configuracao import Configuracao
+
+logger = logging.getLogger(__name__)
+
+
+async def _get_configs(db: AsyncSession) -> dict:
+    result = await db.execute(select(Configuracao))
+    return {row.chave: row.valor for row in result.scalars().all()}
+
+
+def _render(template: str, **kwargs) -> str:
+    try:
+        return template.format(**kwargs)
+    except KeyError:
+        return template
+
+
+def _send(cfg: dict, destinatario: str, assunto: str, corpo: str):
+    host = cfg.get("smtp_host", "smtp.gmail.com")
+    port = int(cfg.get("smtp_port", 587))
+    user = cfg.get("smtp_user", "")
+    password = cfg.get("smtp_password", "")
+    tls = cfg.get("smtp_tls", "true").lower() == "true"
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = assunto
+    msg["From"] = f"Gestão de Vínculo <{user}>"
+    msg["To"] = destinatario
+    msg.attach(MIMEText(corpo, "plain", "utf-8"))
+
+    try:
+        with smtplib.SMTP(host, port, timeout=15) as server:
+            if tls:
+                server.starttls()
+            server.login(user, password)
+            server.sendmail(user, [destinatario], msg.as_string())
+        logger.info("Email enviado para %s | %s", destinatario, assunto)
+    except Exception as e:
+        logger.error("Falha ao enviar email para %s: %s", destinatario, str(e))
+
+
+async def notificar_novo_pedido(db: AsyncSession, numero_pedido: str, nome_cliente: str, franquia_nome: str):
+    cfg = await _get_configs(db)
+    destinatario = cfg.get("email_comercial", "")
+    if not destinatario:
+        return
+    corpo = _render(cfg.get("tpl_novo_pedido", "Novo pedido: {numero_pedido}"),
+                    numero_pedido=numero_pedido, nome_cliente=nome_cliente, franquia_nome=franquia_nome)
+    _send(cfg, destinatario, f"Novo pedido para análise: {numero_pedido}", corpo)
+
+
+async def notificar_aprovado_financeiro(db: AsyncSession, numero_pedido: str, nome_cliente: str, franquia_nome: str):
+    cfg = await _get_configs(db)
+    destinatario = cfg.get("email_financeiro", "")
+    if not destinatario:
+        return
+    corpo = _render(cfg.get("tpl_aprovado_financeiro", "Novo pedido financeiro: {numero_pedido}"),
+                    numero_pedido=numero_pedido, nome_cliente=nome_cliente, franquia_nome=franquia_nome)
+    _send(cfg, destinatario, f"Pedido para análise financeira: {numero_pedido}", corpo)
+
+
+async def notificar_aprovado_ti(db: AsyncSession, numero_pedido: str, nome_cliente: str, franquia_nome: str):
+    cfg = await _get_configs(db)
+    destinatario = cfg.get("email_ti", "")
+    if not destinatario:
+        return
+    corpo = _render(cfg.get("tpl_aprovado_ti", "Novo pedido TI: {numero_pedido}"),
+                    numero_pedido=numero_pedido, nome_cliente=nome_cliente, franquia_nome=franquia_nome)
+    _send(cfg, destinatario, f"Pedido para execução TI: {numero_pedido}", corpo)
+
+
+async def notificar_reprovado(db: AsyncSession, numero_pedido: str, motivo: str, email_destino: str):
+    cfg = await _get_configs(db)
+    if not email_destino:
+        return
+    corpo = _render(cfg.get("tpl_reprovado", "Pedido reprovado: {numero_pedido}. Motivo: {motivo}"),
+                    numero_pedido=numero_pedido, motivo=motivo or "—")
+    _send(cfg, email_destino, f"Pedido reprovado: {numero_pedido}", corpo)
+
+
+async def notificar_vinculado(db: AsyncSession, numero_pedido: str, nome_cliente: str, email_franquia: str):
+    cfg = await _get_configs(db)
+    if not email_franquia:
+        return
+    corpo = _render(cfg.get("tpl_vinculado", "Pedido vinculado: {numero_pedido}"),
+                    numero_pedido=numero_pedido, nome_cliente=nome_cliente)
+    _send(cfg, email_franquia, f"Pedido vinculado com sucesso: {numero_pedido}", corpo)
