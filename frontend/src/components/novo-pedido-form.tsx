@@ -365,7 +365,16 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
             </button>
             <button
               type="submit"
-              disabled={enviando || (quantidadeCupons > 0 && !cuponsValidos) || arquivos.length === 0}
+              disabled={
+                enviando ||
+                !numeroPedido.trim() ||
+                !franquiaId ||
+                !nomeCliente.trim() ||
+                !valorPedido || parseFloat(valorPedido) <= 0 ||
+                !dataPedido ||
+                arquivos.length === 0 ||
+                (quantidadeCupons > 0 && !cuponsValidos)
+              }
               className="flex-1 py-3 px-4 rounded-xl text-sm font-medium text-white bg-slate-800 hover:bg-slate-900 transition-colors disabled:opacity-50"
             >
               {enviando ? 'Enviando...' : 'Criar Pedido'}

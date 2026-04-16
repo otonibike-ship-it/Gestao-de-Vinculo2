@@ -14,9 +14,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-async def _enrich(v: Vinculo, db: AsyncSession) -> dict:
-    empresa_result = await db.execute(select(Empresa).where(Empresa.id == v.franquia_id))
-    empresa = empresa_result.scalar_one_or_none()
+def _serialize(v: Vinculo, empresa: Empresa | None = None) -> dict:
     return {
         "id": v.id,
         "numero_pedido": v.numero_pedido,
@@ -38,9 +36,11 @@ async def _enrich(v: Vinculo, db: AsyncSession) -> dict:
     }
 
 
-@router.post("/teste-ping")
-async def teste_ping():
-    return {"ok": True}
+async def _enrich(v: Vinculo, db: AsyncSession) -> dict:
+    empresa_result = await db.execute(select(Empresa).where(Empresa.id == v.franquia_id))
+    empresa = empresa_result.scalar_one_or_none()
+    return _serialize(v, empresa)
+
 
 
 @router.get("")
