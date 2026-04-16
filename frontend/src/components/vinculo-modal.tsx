@@ -91,11 +91,8 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
 
   const aprovarMutation = useMutation({
     mutationFn: async () => {
-      const anexoUrls: string[] = []
-      for (const arq of arquivosAprovacao) {
-        const result = await uploadService.upload(arq)
-        anexoUrls.push(result.url)
-      }
+      const resultados = await Promise.all(arquivosAprovacao.map(arq => uploadService.upload(arq)))
+      const anexoUrls = resultados.map(r => r.url)
       if (modo === 'comercial') {
         return vinculoService.aprovar(vinculo.id, [], necessarioFinanceiro)
       }
@@ -117,12 +114,8 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
 
   const reenviarMutation = useMutation({
     mutationFn: async () => {
-      const uploadedUrls: string[] = []
-      for (const arq of novosArquivos) {
-        const result = await uploadService.upload(arq)
-        uploadedUrls.push(result.url)
-      }
-      const todosAnexos = [...formAnexos, ...uploadedUrls]
+      const resultados = await Promise.all(novosArquivos.map(arq => uploadService.upload(arq)))
+      const todosAnexos = [...formAnexos, ...resultados.map(r => r.url)]
       return vinculoService.reenviar(vinculo.id, {
         franquia_id: formFranquiaId,
         nome_cliente: formCliente,

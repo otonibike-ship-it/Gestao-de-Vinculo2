@@ -10,6 +10,9 @@ const REDIRECT_MAP: Record<Perfil, string> = {
   franquia: '/franquia',
 }
 
+// Cache em memória — evita ler localStorage em cada requisição
+let _tokenCache: string | null = null
+
 export const authService = {
   async login(email: string, senha: string) {
     const form = new URLSearchParams()
@@ -20,6 +23,7 @@ export const authService = {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     })
 
+    _tokenCache = data.access_token
     localStorage.setItem('access_token', data.access_token)
     localStorage.setItem('refresh_token', data.refresh_token)
     localStorage.setItem('perfil', data.perfil)
@@ -29,21 +33,35 @@ export const authService = {
     } else {
       localStorage.removeItem('franquia_id')
     }
+
+    // Salva cookie para o middleware do Next.js validar no servidor
+    document.cookie = `access_token=${data.access_token}; path=/; max-age=${60 * 60 * 8}; SameSite=Lax`
+
     return data
   },
 
   logout() {
+    _tokenCache = null
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('perfil')
     localStorage.removeItem('nome')
     localStorage.removeItem('franquia_id')
+    // Remove cookie
+    document.cookie = 'access_token=; path=/; max-age=0'
     window.location.href = '/login'
+  },
+
+  getToken(): string | null {
+    if (typeof window === 'undefined') return null
+    if (_tokenCache) return _tokenCache
+    _tokenCache = localStorage.getItem('access_token')
+    return _tokenCache
   },
 
   isLoggedIn() {
     if (typeof window === 'undefined') return false
-    return !!localStorage.getItem('access_token')
+    return !!this.getToken()
   },
 
   getPerfil(): Perfil {

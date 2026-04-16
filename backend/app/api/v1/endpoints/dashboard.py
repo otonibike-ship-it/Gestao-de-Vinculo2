@@ -9,16 +9,19 @@ router = APIRouter()
 
 @router.get("/stats")
 async def dashboard_stats(db: AsyncSession = Depends(get_db)):
-    total = await db.execute(select(func.count(Vinculo.id)))
-    abertos = await db.execute(select(func.count(Vinculo.id)).where(Vinculo.status == StatusVinculo.aberto))
-    financeiro = await db.execute(select(func.count(Vinculo.id)).where(Vinculo.status == StatusVinculo.validacao_financeiro))
-    ti = await db.execute(select(func.count(Vinculo.id)).where(Vinculo.status == StatusVinculo.tarefa_ti))
-    fechados = await db.execute(select(func.count(Vinculo.id)).where(Vinculo.status == StatusVinculo.fechado))
+    # 1 query com GROUP BY em vez de 5 queries COUNT separadas
+    result = await db.execute(
+        select(Vinculo.status, func.count(Vinculo.id))
+        .group_by(Vinculo.status)
+    )
+    counts: dict[str, int] = {row[0].value: row[1] for row in result.all()}
 
+    total = sum(counts.values())
     return {
-        "total": total.scalar() or 0,
-        "abertos": abertos.scalar() or 0,
-        "validacao_financeiro": financeiro.scalar() or 0,
-        "tarefa_ti": ti.scalar() or 0,
-        "fechados": fechados.scalar() or 0,
+        "total": total,
+        "abertos": counts.get(StatusVinculo.aberto.value, 0),
+        "validacao_comercial": counts.get(StatusVinculo.validacao_comercial.value, 0),
+        "validacao_financeiro": counts.get(StatusVinculo.validacao_financeiro.value, 0),
+        "tarefa_ti": counts.get(StatusVinculo.tarefa_ti.value, 0),
+        "fechados": counts.get(StatusVinculo.fechado.value, 0),
     }

@@ -1,16 +1,15 @@
 import axios from 'axios'
+import { authService } from '@/services/auth'
 
 const api = axios.create({
   baseURL: (process.env.NEXT_PUBLIC_API_URL || '') + '/api/v1',
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Injeta o token em todas as requisições
+// Injeta o token usando cache em memória (não lê localStorage a cada requisição)
 api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('access_token')
-    if (token) config.headers.Authorization = `Bearer ${token}`
-  }
+  const token = authService.getToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
