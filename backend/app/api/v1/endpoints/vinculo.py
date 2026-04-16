@@ -122,7 +122,7 @@ async def criar_vinculo(payload: VinculoCreate, db: AsyncSession = Depends(get_d
         motivo=payload.motivo,
         necessario_validacao=payload.necessario_validacao,
         quantidade_cupons=payload.quantidade_cupons,
-        cupons=[c.model_dump() for c in payload.cupons] if payload.cupons else None,
+        cupons=[{"valor": float(c.valor)} for c in payload.cupons] if payload.cupons else None,
         status=StatusVinculo.validacao_comercial,
         anexos=payload.anexos,
     )
@@ -217,7 +217,7 @@ async def reenviar_vinculo(vinculo_id: int, payload: ReenviarRequest, db: AsyncS
     vinculo.motivo = payload.motivo
     vinculo.necessario_validacao = payload.necessario_validacao
     vinculo.quantidade_cupons = payload.quantidade_cupons
-    vinculo.cupons = [c.model_dump() for c in payload.cupons] if payload.cupons else None
+    vinculo.cupons = [{"valor": float(c.valor)} for c in payload.cupons] if payload.cupons else None
     vinculo.anexos = payload.anexos
     vinculo.justificativa_reprovacao = None
     vinculo.destino_reprovacao = None
