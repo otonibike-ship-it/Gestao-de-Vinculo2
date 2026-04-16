@@ -2,16 +2,17 @@ import smtplib
 import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from app.core.database import AsyncSessionLocal
 from app.models.configuracao import Configuracao
 
 logger = logging.getLogger(__name__)
 
 
-async def _get_configs(db: AsyncSession) -> dict:
-    result = await db.execute(select(Configuracao))
-    return {row.chave: row.valor for row in result.scalars().all()}
+async def _get_configs() -> dict:
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(select(Configuracao))
+        return {row.chave: row.valor for row in result.scalars().all()}
 
 
 def _render(template: str, **kwargs) -> str:
@@ -45,8 +46,8 @@ def _send(cfg: dict, destinatario: str, assunto: str, corpo: str):
         logger.error("Falha ao enviar email para %s: %s", destinatario, str(e))
 
 
-async def notificar_novo_pedido(db: AsyncSession, numero_pedido: str, nome_cliente: str, franquia_nome: str):
-    cfg = await _get_configs(db)
+async def notificar_novo_pedido(numero_pedido: str, nome_cliente: str, franquia_nome: str):
+    cfg = await _get_configs()
     destinatario = cfg.get("email_comercial", "")
     if not destinatario:
         return
@@ -55,8 +56,8 @@ async def notificar_novo_pedido(db: AsyncSession, numero_pedido: str, nome_clien
     _send(cfg, destinatario, f"Novo pedido para análise: {numero_pedido}", corpo)
 
 
-async def notificar_aprovado_financeiro(db: AsyncSession, numero_pedido: str, nome_cliente: str, franquia_nome: str):
-    cfg = await _get_configs(db)
+async def notificar_aprovado_financeiro(numero_pedido: str, nome_cliente: str, franquia_nome: str):
+    cfg = await _get_configs()
     destinatario = cfg.get("email_financeiro", "")
     if not destinatario:
         return
@@ -65,8 +66,8 @@ async def notificar_aprovado_financeiro(db: AsyncSession, numero_pedido: str, no
     _send(cfg, destinatario, f"Pedido para análise financeira: {numero_pedido}", corpo)
 
 
-async def notificar_aprovado_ti(db: AsyncSession, numero_pedido: str, nome_cliente: str, franquia_nome: str):
-    cfg = await _get_configs(db)
+async def notificar_aprovado_ti(numero_pedido: str, nome_cliente: str, franquia_nome: str):
+    cfg = await _get_configs()
     destinatario = cfg.get("email_ti", "")
     if not destinatario:
         return
@@ -75,8 +76,8 @@ async def notificar_aprovado_ti(db: AsyncSession, numero_pedido: str, nome_clien
     _send(cfg, destinatario, f"Pedido para execução TI: {numero_pedido}", corpo)
 
 
-async def notificar_reprovado(db: AsyncSession, numero_pedido: str, motivo: str, email_destino: str):
-    cfg = await _get_configs(db)
+async def notificar_reprovado(numero_pedido: str, motivo: str, email_destino: str):
+    cfg = await _get_configs()
     if not email_destino:
         return
     corpo = _render(cfg.get("tpl_reprovado", "Pedido reprovado: {numero_pedido}. Motivo: {motivo}"),
@@ -84,8 +85,8 @@ async def notificar_reprovado(db: AsyncSession, numero_pedido: str, motivo: str,
     _send(cfg, email_destino, f"Pedido reprovado: {numero_pedido}", corpo)
 
 
-async def notificar_vinculado(db: AsyncSession, numero_pedido: str, nome_cliente: str, email_franquia: str):
-    cfg = await _get_configs(db)
+async def notificar_vinculado(numero_pedido: str, nome_cliente: str, email_franquia: str):
+    cfg = await _get_configs()
     if not email_franquia:
         return
     corpo = _render(cfg.get("tpl_vinculado", "Pedido vinculado: {numero_pedido}"),

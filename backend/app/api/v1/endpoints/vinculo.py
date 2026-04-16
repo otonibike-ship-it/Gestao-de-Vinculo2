@@ -137,7 +137,7 @@ async def criar_vinculo(payload: VinculoCreate, db: AsyncSession = Depends(get_d
         # Disparo de email em background (não bloqueia resposta)
         franquia_nome = result.get("franquia_nome", "")
         asyncio.create_task(email_svc.notificar_novo_pedido(
-            db, payload.numero_pedido, payload.nome_cliente, franquia_nome
+            payload.numero_pedido, payload.nome_cliente, franquia_nome
         ))
         return result
     except IntegrityError as e:
@@ -191,18 +191,17 @@ async def aprovar_vinculo(vinculo_id: int, payload: AprovarRequest, db: AsyncSes
     numero = vinculo.numero_pedido
     nome_cli = vinculo.nome_cliente
     if vinculo.status == StatusVinculo.validacao_financeiro:
-        asyncio.create_task(email_svc.notificar_aprovado_financeiro(db, numero, nome_cli, franquia_nome))
+        asyncio.create_task(email_svc.notificar_aprovado_financeiro(numero, nome_cli, franquia_nome))
     elif vinculo.status == StatusVinculo.tarefa_ti:
-        asyncio.create_task(email_svc.notificar_aprovado_ti(db, numero, nome_cli, franquia_nome))
+        asyncio.create_task(email_svc.notificar_aprovado_ti(numero, nome_cli, franquia_nome))
     elif vinculo.status == StatusVinculo.fechado:
-        # Busca email da franquia
         u = await db.scalar(select(Usuario).where(
             Usuario.franquia_id == vinculo.franquia_id,
             Usuario.perfil == PerfilUsuario.franquia,
             Usuario.ativo == True,
         ))
         if u:
-            asyncio.create_task(email_svc.notificar_vinculado(db, numero, nome_cli, u.email))
+            asyncio.create_task(email_svc.notificar_vinculado(numero, nome_cli, u.email))
 
     return result
 
@@ -238,15 +237,14 @@ async def reprovar_vinculo(vinculo_id: int, payload: ReprovarRequest, db: AsyncS
             Usuario.ativo == True,
         ))
         if u:
-            asyncio.create_task(email_svc.notificar_reprovado(db, numero, motivo, u.email))
+            asyncio.create_task(email_svc.notificar_reprovado(numero, motivo, u.email))
     else:
-        # destino = comercial
         from app.models.configuracao import Configuracao
         email_comercial = await db.scalar(
             select(Configuracao.valor).where(Configuracao.chave == "email_comercial")
         )
         if email_comercial:
-            asyncio.create_task(email_svc.notificar_reprovado(db, numero, motivo, email_comercial))
+            asyncio.create_task(email_svc.notificar_reprovado(numero, motivo, email_comercial))
 
     return result
 
