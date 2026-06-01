@@ -22,5 +22,7 @@ class Usuario(Base):
     perfil = Column(Enum(PerfilUsuario), nullable=False, default=PerfilUsuario.comercial)
     franquia_id = Column(Integer, ForeignKey("empresas.id", ondelete="SET NULL"), nullable=True)
     ativo = Column(Boolean, default=True)
+    reset_token = Column(String(100), nullable=True)
+    reset_token_expira_em = Column(DateTime(timezone=True), nullable=True)
     criado_em = Column(DateTime(timezone=True), server_default=func.now())
     atualizado_em = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

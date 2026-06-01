@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -82,6 +83,13 @@ export default function LoginPage() {
                 placeholder="Digite sua senha"
               />
               {errors.senha && <p className="text-red-500 text-xs mt-1.5">{errors.senha.message}</p>}
+            </div>
+
+            {/* Esqueci a senha */}
+            <div className="text-right -mt-2">
+              <Link href="/esqueci-senha" className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
+                Esqueci minha senha
+              </Link>
             </div>
 
             {/* Erro */}

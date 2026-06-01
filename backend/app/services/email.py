@@ -92,3 +92,16 @@ async def notificar_vinculado(numero_pedido: str, nome_cliente: str, email_franq
     corpo = _render(cfg.get("tpl_vinculado", "Pedido vinculado: {numero_pedido}"),
                     numero_pedido=numero_pedido, nome_cliente=nome_cliente)
     _send(cfg, email_franquia, f"Pedido vinculado com sucesso: {numero_pedido}", corpo)
+
+
+async def notificar_reset_senha(email_destino: str, nome: str, link: str):
+    cfg = await _get_configs()
+    if not email_destino:
+        return
+    tpl_default = (
+        "Ola, {nome}! Voce solicitou a redefinicao de senha.\n\n"
+        "Clique no link abaixo para criar uma nova senha (valido por 1 hora):\n{link}\n\n"
+        "Se nao foi voce, ignore este e-mail."
+    )
+    corpo = _render(cfg.get("tpl_reset_senha", tpl_default), nome=nome, link=link)
+    _send(cfg, email_destino, "Redefinicao de senha - Gestao de Vinculo", corpo)

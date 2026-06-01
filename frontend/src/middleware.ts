@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const PUBLIC_PATHS = ['/login']
+const PUBLIC_PATHS = ['/login', '/esqueci-senha', '/redefinir-senha']
 
 const PERFIL_HOME: Record<string, string> = {
   comercial: '/comercial',
