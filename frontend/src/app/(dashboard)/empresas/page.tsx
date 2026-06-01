@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Building2, Search, Plus, X, Pencil, Trash2 } from 'lucide-react'
+import { Building2, Search, Plus, X, Pencil, Trash2, Upload, Download, CheckCircle, AlertTriangle } from 'lucide-react'
 import api from '@/lib/api'
 
 interface FranquiaData {
@@ -14,11 +14,22 @@ interface FranquiaData {
   criado_em: string
 }
 
+interface ImportResult {
+  criados: number
+  ignorados: number
+  erros: number
+  detalhes_erros: { linha: number; cnpj?: string; motivo: string }[]
+  cnpjs_ignorados: string[]
+}
+
 export default function EmpresasPage() {
   const queryClient = useQueryClient()
   const [busca, setBusca] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editando, setEditando] = useState<FranquiaData | null>(null)
+  const [importResult, setImportResult] = useState<ImportResult | null>(null)
+  const [importando, setImportando] = useState(false)
+  const csvInputRef = useRef<HTMLInputElement>(null)
   const [formNome, setFormNome] = useState('')
   const [formCnpj, setFormCnpj] = useState('')
   const [formEmail, setFormEmail] = useState('')
@@ -111,6 +122,39 @@ export default function EmpresasPage() {
       .replace(/(\d{4})(\d)/, '$1-$2')
   }
 
+  const handleImportarCsv = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setImportando(true)
+    setImportResult(null)
+    try {
+      const form = new FormData()
+      form.append('arquivo', file)
+      const { data: result } = await api.post('/empresas/importar', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      setImportResult(result as ImportResult)
+      queryClient.invalidateQueries({ queryKey: ['empresas'] })
+    } catch (e: any) {
+      const detail = e?.response?.data?.detail
+      setImportResult({ criados: 0, ignorados: 0, erros: 1, detalhes_erros: [{ linha: 0, motivo: detail || 'Erro ao processar arquivo' }], cnpjs_ignorados: [] })
+    } finally {
+      setImportando(false)
+    }
+  }
+
+  const baixarModelo = () => {
+    const conteudo = 'nome,cnpj,email,telefone\nSenseBike Exemplo,00.000.000/0001-00,contato@franquia.com.br,(11) 99999-0000'
+    const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'modelo_franquias.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const filtrados = data?.filter((f) => {
     if (!busca) return true
     const t = busca.toLowerCase()
@@ -137,14 +181,67 @@ export default function EmpresasPage() {
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
           />
         </div>
-        <button
-          onClick={() => { resetForm(); setShowForm(true) }}
-          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
-        >
-          <Plus size={16} />
-          Nova Franquia
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={baixarModelo}
+            className="flex items-center gap-2 text-slate-600 border border-slate-200 hover:bg-slate-50 text-sm font-medium px-3 py-2.5 rounded-lg transition-colors"
+            title="Baixar modelo CSV"
+          >
+            <Download size={16} />
+            Modelo CSV
+          </button>
+          <button
+            onClick={() => csvInputRef.current?.click()}
+            disabled={importando}
+            className="flex items-center gap-2 text-slate-700 border border-slate-300 hover:bg-slate-50 text-sm font-medium px-3 py-2.5 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <Upload size={16} />
+            {importando ? 'Importando...' : 'Importar CSV'}
+          </button>
+          <input ref={csvInputRef} type="file" accept=".csv" className="hidden" onChange={handleImportarCsv} />
+          <button
+            onClick={() => { resetForm(); setShowForm(true) }}
+            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+          >
+            <Plus size={16} />
+            Nova Franquia
+          </button>
+        </div>
       </div>
+
+      {/* Resultado da importação */}
+      {importResult && (
+        <div className={`rounded-xl border px-5 py-4 ${importResult.erros > 0 && importResult.criados === 0 ? 'bg-red-50 border-red-100' : 'bg-green-50 border-green-100'}`}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {importResult.criados > 0 || importResult.ignorados > 0
+                ? <CheckCircle size={18} className="text-green-600 shrink-0" />
+                : <AlertTriangle size={18} className="text-red-500 shrink-0" />
+              }
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Resultado da importação</p>
+                <p className="text-sm text-slate-600 mt-0.5">
+                  <span className="text-green-700 font-medium">{importResult.criados} criada(s)</span>
+                  {importResult.ignorados > 0 && <span className="text-slate-500"> · {importResult.ignorados} ignorada(s) (CNPJ já existe)</span>}
+                  {importResult.erros > 0 && <span className="text-red-600"> · {importResult.erros} erro(s)</span>}
+                </p>
+                {importResult.detalhes_erros.length > 0 && (
+                  <ul className="mt-2 space-y-0.5">
+                    {importResult.detalhes_erros.map((e, i) => (
+                      <li key={i} className="text-xs text-red-600">
+                        {e.linha > 0 ? `Linha ${e.linha}: ` : ''}{e.motivo}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+            <button onClick={() => setImportResult(null)} className="text-slate-400 hover:text-slate-600 shrink-0">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Formulário inline */}
       {showForm && (

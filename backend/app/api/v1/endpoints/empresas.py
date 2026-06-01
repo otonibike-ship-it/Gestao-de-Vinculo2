@@ -1,5 +1,7 @@
+import io
+import csv
 import traceback
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional
@@ -92,3 +94,85 @@ async def remover_empresa(empresa_id: int, db: AsyncSession = Depends(get_db)):
     if not empresa:
         raise HTTPException(status_code=404, detail="Empresa não encontrada")
     await db.delete(empresa)
+
+
+@router.post("/importar")
+async def importar_franquias(
+    arquivo: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Importa franquias a partir de um arquivo CSV.
+
+    Colunas esperadas: nome, cnpj, email (opcional), telefone (opcional)
+    CNPJs já cadastrados são ignorados (não sobrescritos).
+    """
+    if not arquivo.filename or not arquivo.filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Envie um arquivo .csv")
+
+    conteudo = await arquivo.read()
+    try:
+        texto = conteudo.decode("utf-8-sig")  # suporta BOM do Excel
+    except UnicodeDecodeError:
+        texto = conteudo.decode("latin-1")
+
+    reader = csv.DictReader(io.StringIO(texto))
+
+    # Normaliza cabeçalhos para minúsculas sem espaços
+    if reader.fieldnames is None:
+        raise HTTPException(status_code=400, detail="CSV vazio ou sem cabeçalho")
+    reader.fieldnames = [f.strip().lower() for f in reader.fieldnames]
+
+    required = {"nome", "cnpj"}
+    if not required.issubset(set(reader.fieldnames)):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Colunas obrigatórias faltando: {required - set(reader.fieldnames)}. "
+                   f"Esperado: nome, cnpj, email (opcional), telefone (opcional)",
+        )
+
+    criados: list[str] = []
+    ignorados: list[str] = []
+    erros: list[dict] = []
+
+    for i, row in enumerate(reader, start=2):  # linha 1 é o cabeçalho
+        nome = (row.get("nome") or "").strip()
+        cnpj_raw = (row.get("cnpj") or "").strip()
+        email = (row.get("email") or "").strip() or None
+        telefone = (row.get("telefone") or "").strip() or None
+
+        if not nome or not cnpj_raw:
+            erros.append({"linha": i, "motivo": "nome ou cnpj em branco"})
+            continue
+
+        # Normaliza CNPJ: aceita com ou sem formatação
+        cnpj_digits = "".join(c for c in cnpj_raw if c.isdigit())
+        if len(cnpj_digits) == 14:
+            cnpj = f"{cnpj_digits[:2]}.{cnpj_digits[2:5]}.{cnpj_digits[5:8]}/{cnpj_digits[8:12]}-{cnpj_digits[12:]}"
+        else:
+            cnpj = cnpj_raw  # mantém como veio e deixa o banco rejeitar se inválido
+
+        try:
+            existing = await db.scalar(select(Empresa).where(Empresa.cnpj == cnpj))
+            if existing:
+                ignorados.append(cnpj)
+                continue
+
+            db.add(Empresa(
+                razao_social=nome,
+                nome_fantasia=nome,
+                cnpj=cnpj,
+                email=email,
+                telefone=telefone,
+            ))
+            await db.flush()
+            criados.append(cnpj)
+        except Exception as e:
+            erros.append({"linha": i, "cnpj": cnpj, "motivo": str(e)})
+
+    return {
+        "criados": len(criados),
+        "ignorados": len(ignorados),
+        "erros": len(erros),
+        "detalhes_erros": erros,
+        "cnpjs_ignorados": ignorados,
+    }
