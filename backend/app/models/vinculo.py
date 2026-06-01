@@ -20,6 +20,7 @@ class Vinculo(Base):
     numero_pedido = Column(String(50), unique=True, nullable=False, index=True)
     franquia_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
     nome_cliente = Column(String(300), nullable=False)
+    cpf = Column(String(14), nullable=True)
     valor_pedido = Column(Numeric(12, 2), nullable=False)
     data_pedido = Column(Date, nullable=False)
     motivo = Column(String(500), nullable=True)

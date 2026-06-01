@@ -23,6 +23,7 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
   const [numeroPedido, setNumeroPedido] = useState('')
   const [franquiaId, setFranquiaId] = useState<number>(0)
   const [nomeCliente, setNomeCliente] = useState('')
+  const [cpf, setCpf] = useState('')
   const [motivo, setMotivo] = useState('')
   const [valorPedido, setValorPedido] = useState('')
   const [dataPedido, setDataPedido] = useState('')
@@ -70,6 +71,14 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
   const valorTotal = parseFloat(valorPedido) || 0
   const cuponsValidos = quantidadeCupons === 0 || Math.abs(somaCupons - valorTotal) < 0.01
 
+  const formatCpf = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 11)
+    return digits
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setErro('')
@@ -77,6 +86,7 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
     if (!numeroPedido.trim()) { setErro('Número do pedido é obrigatório'); return }
     if (!franquiaId) { setErro('Selecione a franquia'); return }
     if (!nomeCliente.trim()) { setErro('Nome do cliente é obrigatório'); return }
+    if (!cpf.trim() || cpf.replace(/\D/g, '').length !== 11) { setErro('CPF inválido'); return }
     if (!valorPedido || parseFloat(valorPedido) <= 0) { setErro('Valor do pedido inválido'); return }
     if (!dataPedido) { setErro('Data do pedido é obrigatória'); return }
     if (arquivos.length === 0) { setErro('Anexe pelo menos um arquivo'); return }
@@ -104,6 +114,7 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
         numero_pedido: numeroPedido.trim(),
         franquia_id: franquiaId,
         nome_cliente: nomeCliente.trim(),
+        cpf: cpf.trim(),
         valor_pedido: parseFloat(valorPedido),
         data_pedido: dataPedido,
         motivo: motivo || undefined,
@@ -192,15 +203,28 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
             )}
           </div>
 
-          {/* Nome do Cliente */}
-          <div>
-            <label className={labelClass}>Nome do Cliente</label>
-            <input
-              value={nomeCliente}
-              onChange={e => setNomeCliente(e.target.value)}
-              className={inputClass}
-              placeholder="Nome completo do cliente"
-            />
+          {/* Nome do Cliente + CPF */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Nome do Cliente</label>
+              <input
+                value={nomeCliente}
+                onChange={e => setNomeCliente(e.target.value)}
+                className={inputClass}
+                placeholder="Nome completo do cliente"
+              />
+            </div>
+            <div>
+              <label className={labelClass}>CPF</label>
+              <input
+                value={cpf}
+                onChange={e => setCpf(formatCpf(e.target.value))}
+                className={inputClass}
+                placeholder="000.000.000-00"
+                maxLength={14}
+                inputMode="numeric"
+              />
+            </div>
           </div>
 
           {/* Motivo */}
@@ -370,6 +394,7 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
                 !numeroPedido.trim() ||
                 !franquiaId ||
                 !nomeCliente.trim() ||
+                cpf.replace(/\D/g, '').length !== 11 ||
                 !valorPedido || parseFloat(valorPedido) <= 0 ||
                 !dataPedido ||
                 arquivos.length === 0 ||

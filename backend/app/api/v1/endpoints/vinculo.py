@@ -24,6 +24,7 @@ def _serialize(v: Vinculo, empresa: Empresa | None = None) -> dict:
         "franquia_id": v.franquia_id,
         "franquia_nome": empresa.nome_fantasia or empresa.razao_social if empresa else "—",
         "nome_cliente": v.nome_cliente,
+        "cpf": v.cpf,
         "valor_pedido": v.valor_pedido,
         "data_pedido": v.data_pedido.isoformat() if v.data_pedido else None,
         "motivo": v.motivo,
@@ -79,6 +80,7 @@ async def listar_vinculos(
             "franquia_id": v.franquia_id,
             "franquia_nome": empresa.nome_fantasia or empresa.razao_social if empresa else "—",
             "nome_cliente": v.nome_cliente,
+            "cpf": v.cpf,
             "valor_pedido": v.valor_pedido,
             "data_pedido": v.data_pedido.isoformat() if v.data_pedido else None,
             "motivo": v.motivo,
@@ -120,6 +122,7 @@ async def criar_vinculo(payload: VinculoCreate, db: AsyncSession = Depends(get_d
         numero_pedido=payload.numero_pedido,
         franquia_id=payload.franquia_id,
         nome_cliente=payload.nome_cliente,
+        cpf=payload.cpf,
         valor_pedido=payload.valor_pedido,
         data_pedido=payload.data_pedido,
         motivo=payload.motivo,
@@ -261,6 +264,7 @@ async def reenviar_vinculo(vinculo_id: int, payload: ReenviarRequest, db: AsyncS
 
     vinculo.franquia_id = payload.franquia_id
     vinculo.nome_cliente = payload.nome_cliente
+    vinculo.cpf = payload.cpf
     vinculo.valor_pedido = payload.valor_pedido
     vinculo.data_pedido = payload.data_pedido
     vinculo.motivo = payload.motivo

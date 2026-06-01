@@ -44,6 +44,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
   const [editando, setEditando] = useState(false)
   const [formFranquiaId, setFormFranquiaId] = useState(vinculo.franquia_id)
   const [formCliente, setFormCliente] = useState(vinculo.nome_cliente)
+  const [formCpf, setFormCpf] = useState(vinculo.cpf || '')
   const [formValor, setFormValor] = useState(String(vinculo.valor_pedido))
   const [formData, setFormData] = useState(vinculo.data_pedido)
   const [formMotivo, setFormMotivo] = useState(vinculo.motivo || '')
@@ -119,6 +120,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
       return vinculoService.reenviar(vinculo.id, {
         franquia_id: formFranquiaId,
         nome_cliente: formCliente,
+        cpf: formCpf || undefined,
         valor_pedido: Number(formValor),
         data_pedido: formData,
         motivo: formMotivo || undefined,
@@ -151,6 +153,14 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
     if (!formCliente.trim() || !formValor || !formData || !cuponsValidos) return
     setEnviando(true)
     try { await reenviarMutation.mutateAsync() } finally { setEnviando(false) }
+  }
+
+  const formatCpf = (value: string) => {
+    const digits = value.replace(/\D/g, '').slice(0, 11)
+    return digits
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4')
   }
 
   const inputClass = "w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
@@ -210,13 +220,26 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                 </div>
               )}
 
-              <div>
-                <label className={labelClass}>Nome do Cliente</label>
-                <input
-                  value={formCliente}
-                  onChange={(e) => setFormCliente(e.target.value)}
-                  className={inputClass}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Nome do Cliente</label>
+                  <input
+                    value={formCliente}
+                    onChange={(e) => setFormCliente(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>CPF</label>
+                  <input
+                    value={formCpf}
+                    onChange={(e) => setFormCpf(formatCpf(e.target.value))}
+                    className={inputClass}
+                    placeholder="000.000.000-00"
+                    maxLength={14}
+                    inputMode="numeric"
+                  />
+                </div>
               </div>
 
               <div>
@@ -377,6 +400,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
               <div className="grid grid-cols-2 gap-4">
                 <Campo label="Franquia" valor={vinculo.franquia_nome} />
                 <Campo label="Cliente" valor={vinculo.nome_cliente} />
+                <Campo label="CPF" valor={vinculo.cpf || '—'} />
                 <Campo label="Valor" valor={`R$ ${Number(vinculo.valor_pedido).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
                 <Campo label="Data do Pedido" valor={vinculo.data_pedido ? new Date(vinculo.data_pedido + 'T00:00:00').toLocaleDateString('pt-BR') : '—'} />
                 {vinculo.motivo && <Campo label="Motivo" valor={vinculo.motivo} />}

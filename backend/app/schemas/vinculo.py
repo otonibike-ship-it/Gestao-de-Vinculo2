@@ -21,6 +21,7 @@ class VinculoCreate(BaseModel):
     numero_pedido: str
     franquia_id: int
     nome_cliente: str
+    cpf: Optional[str] = None
     valor_pedido: Decimal
     data_pedido: date
     motivo: Optional[str] = None
@@ -36,6 +37,7 @@ class VinculoResponse(BaseModel):
     franquia_id: int
     franquia_nome: Optional[str] = None
     nome_cliente: str
+    cpf: Optional[str] = None
     valor_pedido: Decimal
     data_pedido: date
     motivo: Optional[str] = None
@@ -66,6 +68,7 @@ class ReprovarRequest(BaseModel):
 class ReenviarRequest(BaseModel):
     franquia_id: int
     nome_cliente: str
+    cpf: Optional[str] = None
     valor_pedido: Decimal
     data_pedido: date
     motivo: Optional[str] = None

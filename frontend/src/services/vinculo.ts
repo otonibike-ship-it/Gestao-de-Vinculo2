@@ -6,6 +6,7 @@ export interface VinculoData {
   franquia_id: number
   franquia_nome: string
   nome_cliente: string
+  cpf: string | null
   valor_pedido: number
   data_pedido: string
   motivo: string | null
@@ -24,6 +25,7 @@ export interface VinculoCreatePayload {
   numero_pedido: string
   franquia_id: number
   nome_cliente: string
+  cpf?: string
   valor_pedido: number
   data_pedido: string
   motivo?: string
