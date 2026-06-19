@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Settings, Mail, Send, Save, Eye, EyeOff, CheckCircle, AlertTriangle } from 'lucide-react'
+import { Settings, Mail, Send, Save, Eye, EyeOff, CheckCircle, AlertTriangle, Globe } from 'lucide-react'
 import api from '@/lib/api'
 
 const TEMPLATES = [
@@ -11,6 +11,7 @@ const TEMPLATES = [
   { chave: 'tpl_aprovado_ti', label: 'Aprovado → TI', vars: '{numero_pedido}, {nome_cliente}, {franquia_nome}' },
   { chave: 'tpl_reprovado', label: 'Pedido reprovado (Comercial ou Franquia)', vars: '{numero_pedido}, {motivo}' },
   { chave: 'tpl_vinculado', label: 'Pedido vinculado (→ Franquia)', vars: '{numero_pedido}, {nome_cliente}' },
+  { chave: 'tpl_reset_senha', label: 'Esqueci minha senha (link enviado ao usuário)', vars: '{nome}, {link}' },
 ]
 
 export default function ConfiguracoesPage() {
@@ -71,7 +72,29 @@ export default function ConfiguracoesPage() {
         <Settings size={20} className="text-slate-600" />
         <div>
           <h2 className="text-base font-semibold text-slate-800">Configurações</h2>
-          <p className="text-xs text-slate-400">SMTP e templates de notificação por email</p>
+          <p className="text-xs text-slate-400">Sistema, SMTP e templates de notificação por e-mail</p>
+        </div>
+      </div>
+
+      {/* Sistema */}
+      <div className={sectionClass}>
+        <div className="px-5 py-3.5 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+          <Globe size={15} className="text-slate-500" />
+          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Sistema</p>
+        </div>
+        <div className="px-5 py-5">
+          <div>
+            <label className={labelClass}>URL do sistema</label>
+            <p className="text-[11px] text-slate-400 mb-1.5">
+              Usada nos links enviados por e-mail (ex: link de redefinição de senha). Sem barra no final.
+            </p>
+            <input
+              className={inputClass}
+              placeholder="https://gestao.sensebike.com.br"
+              value={valores.app_url || ''}
+              onChange={e => set('app_url', e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
