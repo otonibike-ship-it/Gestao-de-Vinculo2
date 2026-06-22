@@ -7,7 +7,7 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.core.database import get_db, AsyncSessionLocal
+from app.core.database import get_db
 from app.models.usuario import Usuario
 from app.models.configuracao import Configuracao
 from app.schemas.auth import RefreshTokenRequest
