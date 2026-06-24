@@ -8,12 +8,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: dev
+      target: prod
     restart: unless-stopped
     expose:
       - "3000"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - INTERNAL_API_URL=http://api:8000
     depends_on:
       - api
