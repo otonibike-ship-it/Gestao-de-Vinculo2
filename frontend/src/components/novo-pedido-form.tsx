@@ -93,10 +93,10 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
 
     if (quantidadeCupons > 0) {
       if (valoresCupons.some(v => !v || parseFloat(v) <= 0)) {
-        setErro('Preencha o valor de todos os cupons'); return
+        setErro('Preencha o valor de todos os comprovantes de pagamento'); return
       }
       if (!cuponsValidos) {
-        setErro(`Soma dos cupons (R$ ${somaCupons.toFixed(2)}) é diferente do valor do pedido (R$ ${valorTotal.toFixed(2)})`); return
+        setErro(`Soma dos comprovantes (R$ ${somaCupons.toFixed(2)}) é diferente do valor do pedido (R$ ${valorTotal.toFixed(2)})`); return
       }
     }
 
@@ -263,15 +263,15 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
           {/* ── CUPONS ─────────────────────────────────────── */}
           <div className="border border-slate-200 rounded-xl p-4 space-y-4 bg-slate-50">
             <div>
-              <label className={labelClass}>Quantos cupons serão anexados?</label>
+              <label className={labelClass}>Quantos comprovantes de pagamento serão anexados?</label>
               <select
                 value={quantidadeCupons}
                 onChange={e => setQuantidadeCupons(Number(e.target.value))}
                 className={inputClass + ' bg-white'}
               >
-                <option value={0}>Nenhum cupom</option>
+                <option value={0}>Nenhum comprovante de pagamento</option>
                 {Array.from({ length: 20 }, (_, i) => i + 1).map(n => (
-                  <option key={n} value={n}>{n} cupom{n > 1 ? 's' : ''}</option>
+                  <option key={n} value={n}>{n} comprovante{n > 1 ? 's' : ''} de pagamento</option>
                 ))}
               </select>
             </div>
@@ -281,7 +281,7 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
                 {valoresCupons.map((v, i) => (
                   <div key={i} className="flex items-center gap-3">
                     <span className="text-xs text-slate-500 w-20 shrink-0">
-                      {i + 1}º cupom:
+                      {i + 1}º comprovante:
                     </span>
                     <div className="relative flex-1">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
@@ -308,14 +308,14 @@ export default function NovoPedidoForm({ voltarPara }: Props) {
                   cuponsValidos ? 'bg-green-50 text-green-700 border border-green-200' :
                   'bg-red-50 text-red-700 border border-red-200'
                 }`}>
-                  <span>Soma dos cupons:</span>
+                  <span>Soma dos comprovantes:</span>
                   <span>R$ {somaCupons.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
 
                 {valorTotal > 0 && !cuponsValidos && (
                   <div className="flex items-center gap-2 text-xs text-red-600">
                     <AlertTriangle size={13} />
-                    A soma dos cupons deve ser igual ao valor do pedido (R$ {valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})
+                    A soma dos comprovantes deve ser igual ao valor do pedido (R$ {valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})
                   </div>
                 )}
               </div>

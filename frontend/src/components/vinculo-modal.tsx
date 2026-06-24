@@ -272,15 +272,15 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
               {/* Cupons */}
               <div className="border border-slate-200 rounded-xl p-4 space-y-3 bg-slate-50">
                 <div>
-                  <label className={labelClass}>Quantos cupons serão anexados?</label>
+                  <label className={labelClass}>Quantos comprovantes de pagamento serão anexados?</label>
                   <select
                     value={formQuantidadeCupons}
                     onChange={(e) => setFormQuantidadeCupons(Number(e.target.value))}
                     className={inputClass + ' bg-white'}
                   >
-                    <option value={0}>Nenhum cupom</option>
+                    <option value={0}>Nenhum comprovante de pagamento</option>
                     {Array.from({ length: 20 }, (_, i) => i + 1).map(n => (
-                      <option key={n} value={n}>{n} cupom{n > 1 ? 's' : ''}</option>
+                      <option key={n} value={n}>{n} comprovante{n > 1 ? 's' : ''} de pagamento</option>
                     ))}
                   </select>
                 </div>
@@ -288,7 +288,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                   <div className="space-y-2">
                     {formValoresCupons.map((v, i) => (
                       <div key={i} className="flex items-center gap-3">
-                        <span className="text-xs text-slate-500 w-20 shrink-0">{i + 1}º cupom:</span>
+                        <span className="text-xs text-slate-500 w-20 shrink-0">{i + 1}º comprovante:</span>
                         <div className="relative flex-1">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
                           <input
@@ -312,7 +312,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                       cuponsValidos ? 'bg-green-50 text-green-700 border border-green-200' :
                       'bg-red-50 text-red-700 border border-red-200'
                     }`}>
-                      <span>Soma dos cupons:</span>
+                      <span>Soma dos comprovantes:</span>
                       <span>R$ {somaCupons.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     </div>
                     {valorTotalForm > 0 && !cuponsValidos && (
@@ -411,12 +411,12 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
               {vinculo.quantidade_cupons && vinculo.quantidade_cupons > 0 && (
                 <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3">
                   <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
-                    Cupons ({vinculo.quantidade_cupons})
+                    Comprovantes de pagamento ({vinculo.quantidade_cupons})
                   </p>
                   <div className="space-y-1">
                     {vinculo.cupons?.map((c, i) => (
                       <div key={i} className="flex justify-between text-sm">
-                        <span className="text-slate-500">{i + 1}º cupom</span>
+                        <span className="text-slate-500">{i + 1}º comprovante</span>
                         <span className="text-slate-700 font-medium">
                           R$ {Number(c.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </span>
