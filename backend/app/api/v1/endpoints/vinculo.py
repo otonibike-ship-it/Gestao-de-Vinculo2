@@ -223,7 +223,12 @@ async def reprovar_vinculo(vinculo_id: int, payload: ReprovarRequest, db: AsyncS
     ):
         raise HTTPException(status_code=400, detail=f"Não é possível reprovar com status '{vinculo.status.value}'")
 
-    vinculo.status = StatusVinculo.aberto
+    _destino_status = {
+        "franquia":   StatusVinculo.aberto,
+        "comercial":  StatusVinculo.validacao_comercial,
+        "financeiro": StatusVinculo.validacao_financeiro,
+    }
+    vinculo.status = _destino_status.get(payload.destino, StatusVinculo.aberto)
     vinculo.justificativa_reprovacao = payload.justificativa
     vinculo.destino_reprovacao = payload.destino
     await db.flush()
@@ -231,6 +236,7 @@ async def reprovar_vinculo(vinculo_id: int, payload: ReprovarRequest, db: AsyncS
     result = await _enrich(vinculo, db)
 
     # Email conforme destino da reprovação
+    from app.models.configuracao import Configuracao
     numero = vinculo.numero_pedido
     motivo = payload.justificativa
     if payload.destino == "franquia":
@@ -241,8 +247,13 @@ async def reprovar_vinculo(vinculo_id: int, payload: ReprovarRequest, db: AsyncS
         ))
         if u:
             asyncio.create_task(email_svc.notificar_reprovado(numero, motivo, u.email))
+    elif payload.destino == "financeiro":
+        email_financeiro = await db.scalar(
+            select(Configuracao.valor).where(Configuracao.chave == "email_financeiro")
+        )
+        if email_financeiro:
+            asyncio.create_task(email_svc.notificar_reprovado(numero, motivo, email_financeiro))
     else:
-        from app.models.configuracao import Configuracao
         email_comercial = await db.scalar(
             select(Configuracao.valor).where(Configuracao.chave == "email_comercial")
         )
