@@ -374,7 +374,8 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                     multiple
                     className="hidden"
                     onChange={(e) => {
-                      if (e.target.files) setNovosArquivos(prev => [...prev, ...Array.from(e.target.files!)])
+                      const files = Array.from(e.target.files || [])
+                      if (files.length > 0) setNovosArquivos(prev => [...prev, ...files])
                       e.target.value = ''
                     }}
                   />
@@ -498,7 +499,8 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                       multiple
                       className="hidden"
                       onChange={(e) => {
-                        if (e.target.files) setArquivosAprovacao(prev => [...prev, ...Array.from(e.target.files!)])
+                        const files = Array.from(e.target.files || [])
+                        if (files.length > 0) setArquivosAprovacao(prev => [...prev, ...files])
                         e.target.value = ''
                       }}
                     />
