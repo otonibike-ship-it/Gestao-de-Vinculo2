@@ -19,6 +19,7 @@ services:
       - api
     networks:
       - vinculo_net
+      - coolify
 
   # ─────────────────────────────────────────
   # API — Backend principal (FastAPI)
@@ -96,3 +97,5 @@ volumes:
 networks:
   vinculo_net:
     driver: bridge
+  coolify:
+    external: true
