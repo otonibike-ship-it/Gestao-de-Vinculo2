@@ -348,18 +348,16 @@ export default function AdminPage() {
           </div>
         )}
 
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50">
-              <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Nome</th>
-              <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Email</th>
-              <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Perfil</th>
-              <th className="text-right px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider w-24">Ações</th>
-            </tr>
-          </thead>
-        </table>
         <div className="max-h-[200px] overflow-y-auto">
           <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10">
+              <tr className="border-b border-slate-100 bg-slate-50">
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Nome</th>
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Email</th>
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Perfil</th>
+                <th className="text-right px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider w-24">Ações</th>
+              </tr>
+            </thead>
             <tbody className="divide-y divide-slate-50">
               {loadingUsers && <tr><td colSpan={4} className="px-5 py-6 text-center text-xs text-slate-400">Carregando...</td></tr>}
               {filteredUsers?.map(u => (
@@ -451,19 +449,17 @@ export default function AdminPage() {
           </div>
         )}
 
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50">
-              <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Nome</th>
-              <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">CNPJ</th>
-              <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">E-mail / Login</th>
-              <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Acesso</th>
-              <th className="text-right px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider w-24">Ações</th>
-            </tr>
-          </thead>
-        </table>
         <div className="max-h-[220px] overflow-y-auto">
           <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10">
+              <tr className="border-b border-slate-100 bg-slate-50">
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Nome</th>
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">CNPJ</th>
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">E-mail / Login</th>
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Acesso</th>
+                <th className="text-right px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider w-24">Ações</th>
+              </tr>
+            </thead>
             <tbody className="divide-y divide-slate-50">
               {loadingFranq && <tr><td colSpan={5} className="px-5 py-6 text-center text-xs text-slate-400">Carregando...</td></tr>}
               {filteredFranq?.map(f => {
@@ -533,20 +529,18 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 bg-slate-50">
-              <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">N. Pedido</th>
-              <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Franquia</th>
-              <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Cliente</th>
-              <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Valor</th>
-              <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Status</th>
-              <th className="text-right px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider w-20">Ações</th>
-            </tr>
-          </thead>
-        </table>
         <div className="max-h-[230px] overflow-y-auto">
           <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10">
+              <tr className="border-b border-slate-100 bg-slate-50">
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">N. Pedido</th>
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Franquia</th>
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Cliente</th>
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Valor</th>
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Status</th>
+                <th className="text-right px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider w-20">Ações</th>
+              </tr>
+            </thead>
             <tbody className="divide-y divide-slate-50">
               {loadingVinc && <tr><td colSpan={6} className="px-5 py-6 text-center text-xs text-slate-400">Carregando...</td></tr>}
               {filteredVinc?.map(v => (
@@ -565,8 +559,12 @@ export default function AdminPage() {
                     </span>
                   </td>
                   <td className="px-5 py-2.5 text-right">
-                    <button onClick={() => { if (confirm(`Deletar pedido "${v.numero_pedido}"?`)) deletarVincMutation.mutate(v.id) }}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Deletar">
+                    <button
+                      onClick={() => { if (confirm(`Deletar pedido "${v.numero_pedido}"?`)) deletarVincMutation.mutate(v.id) }}
+                      disabled={v.status === 'fechado'}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                      title={v.status === 'fechado' ? 'Pedidos vinculados não podem ser excluídos' : 'Deletar'}
+                    >
                       <Trash2 size={14} />
                     </button>
                   </td>

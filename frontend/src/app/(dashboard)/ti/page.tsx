@@ -87,21 +87,19 @@ export default function TIPage() {
 
       {filtrados && filtrados.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">N. Pedido</th>
-                <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Franquia</th>
-                <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Cliente</th>
-                <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Valor</th>
-                <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Data</th>
-                <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Validacao</th>
-                <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Anexos</th>
-              </tr>
-            </thead>
-          </table>
           <div className="max-h-[230px] overflow-y-auto">
             <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b border-slate-100 bg-slate-50">
+                  <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">N. Pedido</th>
+                  <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Franquia</th>
+                  <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Cliente</th>
+                  <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Valor</th>
+                  <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Data</th>
+                  <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Validacao</th>
+                  <th className="text-left px-5 py-3 font-medium text-slate-500 text-xs uppercase tracking-wider">Anexos</th>
+                </tr>
+              </thead>
               <tbody className="divide-y divide-slate-50">
                 {filtrados.map((v) => (
                   <tr
@@ -160,17 +158,15 @@ export default function TIPage() {
           <div className="px-5 py-8 text-center text-sm text-slate-400">Carregando...</div>
         ) : franquiasFiltradas && franquiasFiltradas.length > 0 ? (
           <>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Nome</th>
-                  <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">CNPJ</th>
-                  <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">E-mail</th>
-                </tr>
-              </thead>
-            </table>
             <div className="max-h-[200px] overflow-y-auto">
               <table className="w-full text-sm">
+                <thead className="sticky top-0 z-10">
+                  <tr className="border-b border-slate-100 bg-slate-50">
+                    <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Nome</th>
+                    <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">CNPJ</th>
+                    <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">E-mail</th>
+                  </tr>
+                </thead>
                 <tbody className="divide-y divide-slate-50">
                   {franquiasFiltradas.map((f) => (
                     <tr key={f.id} className="hover:bg-slate-50 transition-colors">

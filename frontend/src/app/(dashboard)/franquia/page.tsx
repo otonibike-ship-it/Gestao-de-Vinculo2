@@ -52,7 +52,7 @@ export default function FranquiaPage() {
   const ativos = filtrados?.filter(v => v.status !== 'aberto') ?? []
   const reprovados = filtrados?.filter(v => v.status === 'aberto') ?? []
 
-  const TabelaVinculos = ({ vinculos, vazio }: { vinculos: VinculoData[]; vazio: string }) => (
+  const TabelaVinculos = ({ vinculos, vazio, headerBg = 'bg-slate-50' }: { vinculos: VinculoData[]; vazio: string; headerBg?: string }) => (
     vinculos.length === 0 ? (
       <div className="px-5 py-8 text-center">
         <p className="text-sm text-slate-400">{vazio}</p>
@@ -61,6 +61,15 @@ export default function FranquiaPage() {
       <>
         <div className="max-h-[260px] overflow-y-auto">
           <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10">
+              <tr className={`border-b border-slate-100 ${headerBg}`}>
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">N. Pedido</th>
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Cliente</th>
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Valor</th>
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Data</th>
+                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Status</th>
+              </tr>
+            </thead>
             <tbody className="divide-y divide-slate-50">
               {vinculos.map((v) => (
                 <tr
@@ -135,17 +144,6 @@ export default function FranquiaPage() {
             <Store size={16} className="text-slate-500" />
             <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Meus Pedidos</p>
           </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100">
-                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">N. Pedido</th>
-                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Cliente</th>
-                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Valor</th>
-                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Data</th>
-                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Status</th>
-              </tr>
-            </thead>
-          </table>
           <TabelaVinculos vinculos={ativos} vazio="Nenhum pedido em andamento" />
         </div>
       )}
@@ -157,47 +155,7 @@ export default function FranquiaPage() {
             <AlertCircle size={16} className="text-red-500" />
             <p className="text-xs font-semibold text-red-600 uppercase tracking-wider">Pedidos Reprovados — Ação Necessária</p>
           </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-red-50">
-                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">N. Pedido</th>
-                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Cliente</th>
-                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Valor</th>
-                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Data</th>
-                <th className="text-left px-5 py-2.5 font-medium text-slate-500 text-xs uppercase tracking-wider">Status</th>
-              </tr>
-            </thead>
-          </table>
-          <div className="max-h-[260px] overflow-y-auto">
-            <table className="w-full text-sm">
-              <tbody className="divide-y divide-red-50">
-                {reprovados.map((v) => (
-                  <tr
-                    key={v.id}
-                    onClick={() => setSelecionado(v)}
-                    className="hover:bg-red-50/50 transition-colors cursor-pointer"
-                  >
-                    <td className="px-5 py-3 font-medium text-slate-800">{v.numero_pedido}</td>
-                    <td className="px-5 py-3 text-slate-600">{v.nome_cliente}</td>
-                    <td className="px-5 py-3 text-slate-600">
-                      R$ {Number(v.valor_pedido).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-5 py-3 text-slate-500 text-xs">
-                      {v.data_pedido ? new Date(v.data_pedido + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
-                    </td>
-                    <td className="px-5 py-3">
-                      <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-blue-100 text-blue-700">
-                        Novo Pedido
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="px-5 py-2.5 border-t border-red-100 bg-red-50">
-            <p className="text-xs text-red-500">{reprovados.length} pedido(s) aguardando revisão — clique para editar e reenviar</p>
-          </div>
+          <TabelaVinculos vinculos={reprovados} vazio="" headerBg="bg-red-50" />
         </div>
       )}
 

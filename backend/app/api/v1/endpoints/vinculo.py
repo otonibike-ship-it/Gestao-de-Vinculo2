@@ -298,5 +298,7 @@ async def deletar_vinculo(vinculo_id: int, db: AsyncSession = Depends(get_db)):
     vinculo = result.scalar_one_or_none()
     if not vinculo:
         raise HTTPException(status_code=404, detail="Vinculo nao encontrado")
+    if vinculo.status == StatusVinculo.fechado:
+        raise HTTPException(status_code=400, detail="Pedidos vinculados não podem ser excluídos")
     await db.delete(vinculo)
     await db.flush()
