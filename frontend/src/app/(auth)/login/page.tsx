@@ -48,7 +48,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950">
       {/* Logo SenseBike */}
       <div className="mb-8">
-        <img src="/logo.png" alt="SenseBike" className="h-10 w-auto" />
+        <img src="/logo.png" alt="SenseBike" className="h-16 w-auto max-w-[200px]" />
       </div>
 
       <div className="w-full max-w-md mx-4">
