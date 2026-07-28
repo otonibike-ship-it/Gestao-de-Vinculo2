@@ -45,15 +45,19 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950">
+      {/* Logo SenseBike */}
+      <div className="mb-8">
+        <img src="/logo.png" alt="SenseBike" className="h-10 w-auto" />
+      </div>
+
       <div className="w-full max-w-md mx-4">
         <div className="bg-white rounded-2xl shadow-2xl p-10">
           {/* Titulo */}
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
-              Gestao de Vinculos
+              Gestão de Vínculos
             </h1>
-            <p className="text-sm text-slate-400 mt-1">SenseBike</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
