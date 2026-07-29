@@ -438,7 +438,9 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                   <div className="space-y-2">
                     {vinculo.anexos.map((anexo, i) => {
                       const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(anexo)
-                      const url = `${API_URL}${anexo}`
+                      const isPdf = /\.pdf$/i.test(anexo)
+                      const rawAnexo = isPdf ? anexo.replace('/image/upload/', '/raw/upload/') : anexo
+                      const url = `${API_URL}${rawAnexo}`
                       return (
                         <a key={i} href={url} target="_blank" rel="noopener noreferrer"
                           className="block border border-slate-200 rounded-lg overflow-hidden hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group"
