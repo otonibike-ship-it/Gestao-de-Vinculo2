@@ -84,8 +84,9 @@ export const uploadService = {
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET)
     formData.append('folder', 'gestao-vinculo')
 
+    const resourceType = file.type === 'application/pdf' ? 'raw' : 'auto'
     const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
+      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`,
       { method: 'POST', body: formData }
     )
 
