@@ -1,27 +1,13 @@
-import io
-import json
 import os
+import uuid
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
+import httpx
 
 router = APIRouter()
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf"}
 MAX_SIZE = 20 * 1024 * 1024  # 20MB
-
-
-def _get_drive_service():
-    sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
-    if not sa_json:
-        raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_JSON não configurado")
-    info = json.loads(sa_json)
-    creds = service_account.Credentials.from_service_account_info(
-        info,
-        scopes=["https://www.googleapis.com/auth/drive.file"],
-    )
-    return build("drive", "v3", credentials=creds)
+BUCKET = "gestao-vinculo"
 
 
 @router.post("")
@@ -34,34 +20,31 @@ async def upload_file(file: UploadFile = File(...)):
     if len(content) > MAX_SIZE:
         raise HTTPException(status_code=400, detail="Arquivo muito grande (máx. 20MB)")
 
+    supabase_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    supabase_key = os.environ.get("SUPABASE_SERVICE_KEY", "")
+
+    if not supabase_url or not supabase_key:
+        raise HTTPException(status_code=500, detail="Supabase não configurado")
+
+    unique_name = f"{uuid.uuid4()}_{file.filename}"
+    upload_url = f"{supabase_url}/storage/v1/object/{BUCKET}/{unique_name}"
+
     try:
-        service = _get_drive_service()
-        media = MediaIoBaseUpload(
-            io.BytesIO(content),
-            mimetype=file.content_type or "application/octet-stream",
-        )
-        folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
-        body: dict = {"name": file.filename}
-        if folder_id:
-            body["parents"] = [folder_id]
-
-        drive_file = service.files().create(
-            body=body,
-            media_body=media,
-            fields="id",
-        ).execute()
-
-        file_id = drive_file["id"]
-
-        service.permissions().create(
-            fileId=file_id,
-            body={"type": "anyone", "role": "reader"},
-        ).execute()
-
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                upload_url,
+                content=content,
+                headers={
+                    "Authorization": f"Bearer {supabase_key}",
+                    "Content-Type": file.content_type or "application/octet-stream",
+                },
+                timeout=60.0,
+            )
+            resp.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=500, detail=f"Erro no upload: {e.response.text}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro no upload: {str(e)}")
 
-    return {
-        "filename": file.filename,
-        "url": f"https://drive.google.com/file/d/{file_id}/view",
-    }
+    public_url = f"{supabase_url}/storage/v1/object/public/{BUCKET}/{unique_name}"
+    return {"filename": file.filename, "url": public_url}
