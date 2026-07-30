@@ -439,7 +439,9 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                     {vinculo.anexos.map((anexo, i) => {
                       const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(anexo)
                       const isPdf = /\.pdf$/i.test(anexo)
-                      const rawAnexo = isPdf ? anexo.replace('/upload/', '/upload/fl_attachment/') : anexo
+                      const rawAnexo = isPdf && anexo.includes('/image/upload/')
+                        ? anexo.replace('/image/upload/', '/image/upload/fl_attachment/')
+                        : anexo
                       const url = `${API_URL}${rawAnexo}`
                       return (
                         <a key={i} href={url} target="_blank" rel="noopener noreferrer"
