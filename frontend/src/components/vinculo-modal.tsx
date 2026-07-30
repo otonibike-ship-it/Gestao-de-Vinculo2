@@ -39,6 +39,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
   const [enviando, setEnviando] = useState(false)
   const [destinoReprovacao, setDestinoReprovacao] = useState('franquia')
   const [necessarioFinanceiro, setNecessarioFinanceiro] = useState(vinculo.necessario_validacao)
+  const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null)
 
   // Estado de edicao
   const [editando, setEditando] = useState(false)
@@ -167,6 +168,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
   const labelClass = "block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2"
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
@@ -439,30 +441,37 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                     {vinculo.anexos.map((anexo, i) => {
                       const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(anexo)
                       const isPdf = /\.pdf$/i.test(anexo)
-                      const rawAnexo = isPdf && anexo.includes('/image/upload/')
-                        ? anexo.replace('/image/upload/', '/image/upload/fl_attachment/')
-                        : anexo
-                      const url = `${API_URL}${rawAnexo}`
+                      const url = `${API_URL}${anexo}`
                       return (
-                        <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                          className="block border border-slate-200 rounded-lg overflow-hidden hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group"
-                        >
+                        <div key={i} className="border border-slate-200 rounded-lg overflow-hidden hover:border-blue-300 hover:shadow-md transition-all">
                           {isImage ? (
-                            <div className="relative">
-                              <img src={url} alt={`Anexo ${i + 1}`} className="w-full max-h-48 object-contain bg-slate-50" />
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                                <span className="opacity-0 group-hover:opacity-100 bg-white/90 text-slate-700 text-xs font-medium px-3 py-1.5 rounded-full shadow transition-opacity">
-                                  Abrir em nova aba
-                                </span>
+                            <a href={url} target="_blank" rel="noopener noreferrer" className="block group cursor-pointer">
+                              <div className="relative">
+                                <img src={url} alt={`Anexo ${i + 1}`} className="w-full max-h-48 object-contain bg-slate-50" />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                  <span className="opacity-0 group-hover:opacity-100 bg-white/90 text-slate-700 text-xs font-medium px-3 py-1.5 rounded-full shadow transition-opacity">
+                                    Abrir em nova aba
+                                  </span>
+                                </div>
                               </div>
-                            </div>
+                            </a>
+                          ) : isPdf ? (
+                            <button
+                              onClick={() => setPdfViewerUrl(url)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors text-left"
+                            >
+                              <FileText size={16} className="shrink-0" />
+                              <span className="truncate">{anexo.split('/').pop()}</span>
+                            </button>
                           ) : (
-                            <div className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors">
+                            <a href={url} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors"
+                            >
                               <FileText size={16} />
                               {anexo.split('/').pop()}
-                            </div>
+                            </a>
                           )}
-                        </a>
+                        </div>
                       )
                     })}
                   </div>
@@ -714,6 +723,42 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
         </div>
       </div>
     </div>
+
+    {pdfViewerUrl && (
+      <div
+        className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4"
+        onClick={() => setPdfViewerUrl(null)}
+      >
+        <div
+          className="w-full max-w-4xl flex flex-col rounded-xl overflow-hidden shadow-2xl"
+          style={{ height: '90vh' }}
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between bg-white px-4 py-3 border-b border-slate-100">
+            <span className="text-sm font-semibold text-slate-700">Documento</span>
+            <div className="flex items-center gap-4">
+              <a
+                href={pdfViewerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Baixar arquivo ↓
+              </a>
+              <button onClick={() => setPdfViewerUrl(null)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+          <iframe
+            src={`https://docs.google.com/viewer?url=${encodeURIComponent(pdfViewerUrl)}&embedded=true`}
+            className="flex-1 w-full border-0 bg-white"
+            title="PDF"
+          />
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 
