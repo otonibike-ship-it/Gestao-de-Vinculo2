@@ -439,12 +439,19 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                   <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Anexos</p>
                   <div className="space-y-2">
                     {vinculo.anexos.map((anexo, i) => {
-                      const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(anexo)
-                      const isPdf = /\.pdf$/i.test(anexo)
-                      const url = `${API_URL}${anexo}`
+                      const isDrive = /drive\.google\.com/.test(anexo)
+                      const isCloudinaryImage = !isDrive && /\.(jpg|jpeg|png|gif|webp)$/i.test(anexo)
+                      const isViewable = isDrive || /\.pdf$/i.test(anexo)
+                      const url = isDrive ? anexo : `${API_URL}${anexo}`
+                      const previewUrl = isDrive
+                        ? url.replace(/\/view(\?.*)?$/, '/preview')
+                        : url
+                      const label = isDrive
+                        ? (anexo.match(/\/file\/d\/([^\/\?]+)/)?.[1]?.slice(0, 12) + '...' || 'Arquivo')
+                        : anexo.split('/').pop()
                       return (
                         <div key={i} className="border border-slate-200 rounded-lg overflow-hidden hover:border-blue-300 hover:shadow-md transition-all">
-                          {isImage ? (
+                          {isCloudinaryImage ? (
                             <a href={url} target="_blank" rel="noopener noreferrer" className="block group cursor-pointer">
                               <div className="relative">
                                 <img src={url} alt={`Anexo ${i + 1}`} className="w-full max-h-48 object-contain bg-slate-50" />
@@ -455,21 +462,14 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                                 </div>
                               </div>
                             </a>
-                          ) : isPdf ? (
+                          ) : (
                             <button
-                              onClick={() => setPdfViewerUrl(url)}
+                              onClick={() => setPdfViewerUrl(previewUrl)}
                               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors text-left"
                             >
                               <FileText size={16} className="shrink-0" />
-                              <span className="truncate">{anexo.split('/').pop()}</span>
+                              <span className="truncate">{isViewable ? label : label}</span>
                             </button>
-                          ) : (
-                            <a href={url} target="_blank" rel="noopener noreferrer"
-                              className="flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors"
-                            >
-                              <FileText size={16} />
-                              {anexo.split('/').pop()}
-                            </a>
                           )}
                         </div>
                       )
@@ -751,7 +751,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
             </div>
           </div>
           <iframe
-            src={`https://docs.google.com/viewer?url=${encodeURIComponent(pdfViewerUrl)}&embedded=true`}
+            src={pdfViewerUrl}
             className="flex-1 w-full border-0 bg-white"
             title="PDF"
           />

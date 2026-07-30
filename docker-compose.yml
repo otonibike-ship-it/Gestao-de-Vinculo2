@@ -42,6 +42,7 @@ services:
       - CLOUDINARY_CLOUD_NAME=dbzpohsfm
       - CLOUDINARY_API_KEY=284889976331793
       - CLOUDINARY_API_SECRET=kD7muTf0DKojnKGue4FyA9h5gPs
+      - GOOGLE_SERVICE_ACCOUNT_JSON=${GOOGLE_SERVICE_ACCOUNT_JSON}
     depends_on:
       postgres:
         condition: service_healthy

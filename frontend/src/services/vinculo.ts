@@ -74,27 +74,15 @@ export const vinculoService = {
   },
 }
 
-const CLOUDINARY_CLOUD_NAME = 'dbzpohsfm'
-const CLOUDINARY_UPLOAD_PRESET = 'gestao-vinculo'
-
 export const uploadService = {
   async upload(file: File) {
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET)
-    formData.append('folder', 'gestao-vinculo')
 
-    const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
-      { method: 'POST', body: formData }
-    )
+    const { data } = await api.post('/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err?.error?.message || `Cloudinary error ${res.status}`)
-    }
-
-    const data = await res.json()
-    return { filename: data.public_id as string, url: data.secure_url as string }
+    return { filename: file.name, url: data.url as string }
   },
 }

@@ -1,19 +1,27 @@
+import io
+import json
 import os
-import cloudinary
-import cloudinary.uploader
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
 
 router = APIRouter()
 
-cloudinary.config(
-    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME", ""),
-    api_key=os.environ.get("CLOUDINARY_API_KEY", ""),
-    api_secret=os.environ.get("CLOUDINARY_API_SECRET", ""),
-    secure=True,
-)
-
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".pdf"}
-MAX_SIZE = 10 * 1024 * 1024  # 10MB
+MAX_SIZE = 20 * 1024 * 1024  # 20MB
+
+
+def _get_drive_service():
+    sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+    if not sa_json:
+        raise RuntimeError("GOOGLE_SERVICE_ACCOUNT_JSON não configurado")
+    info = json.loads(sa_json)
+    creds = service_account.Credentials.from_service_account_info(
+        info,
+        scopes=["https://www.googleapis.com/auth/drive.file"],
+    )
+    return build("drive", "v3", credentials=creds)
 
 
 @router.post("")
@@ -24,16 +32,31 @@ async def upload_file(file: UploadFile = File(...)):
 
     content = await file.read()
     if len(content) > MAX_SIZE:
-        raise HTTPException(status_code=400, detail="Arquivo muito grande (máx. 10MB)")
+        raise HTTPException(status_code=400, detail="Arquivo muito grande (máx. 20MB)")
 
     try:
-        result = cloudinary.uploader.upload(
-            content,
-            folder="gestao-vinculo",
-            resource_type="auto",
-            timeout=30,
+        service = _get_drive_service()
+        media = MediaIoBaseUpload(
+            io.BytesIO(content),
+            mimetype=file.content_type or "application/octet-stream",
         )
+        drive_file = service.files().create(
+            body={"name": file.filename},
+            media_body=media,
+            fields="id",
+        ).execute()
+
+        file_id = drive_file["id"]
+
+        service.permissions().create(
+            fileId=file_id,
+            body={"type": "anyone", "role": "reader"},
+        ).execute()
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro no upload: {str(e)}")
 
-    return {"filename": result["public_id"], "url": result["secure_url"]}
+    return {
+        "filename": file.filename,
+        "url": f"https://drive.google.com/file/d/{file_id}/view",
+    }
