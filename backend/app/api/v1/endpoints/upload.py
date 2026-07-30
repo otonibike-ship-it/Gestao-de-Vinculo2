@@ -40,8 +40,13 @@ async def upload_file(file: UploadFile = File(...)):
             io.BytesIO(content),
             mimetype=file.content_type or "application/octet-stream",
         )
+        folder_id = os.environ.get("GOOGLE_DRIVE_FOLDER_ID", "")
+        body: dict = {"name": file.filename}
+        if folder_id:
+            body["parents"] = [folder_id]
+
         drive_file = service.files().create(
-            body={"name": file.filename},
+            body=body,
             media_body=media,
             fields="id",
         ).execute()

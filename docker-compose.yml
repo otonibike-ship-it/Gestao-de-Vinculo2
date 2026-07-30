@@ -43,6 +43,7 @@ services:
       - CLOUDINARY_API_KEY=284889976331793
       - CLOUDINARY_API_SECRET=kD7muTf0DKojnKGue4FyA9h5gPs
       - GOOGLE_SERVICE_ACCOUNT_JSON=${GOOGLE_SERVICE_ACCOUNT_JSON}
+      - GOOGLE_DRIVE_FOLDER_ID=${GOOGLE_DRIVE_FOLDER_ID}
     depends_on:
       postgres:
         condition: service_healthy
