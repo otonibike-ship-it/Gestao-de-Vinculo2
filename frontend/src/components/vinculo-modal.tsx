@@ -40,6 +40,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
   const [destinoReprovacao, setDestinoReprovacao] = useState('franquia')
   const [necessarioFinanceiro, setNecessarioFinanceiro] = useState(vinculo.necessario_validacao)
   const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null)
+  const [observacoesFinanceiro, setObservacoesFinanceiro] = useState('')
 
   // Estado de edicao
   const [editando, setEditando] = useState(false)
@@ -98,7 +99,7 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
       if (modo === 'comercial') {
         return vinculoService.aprovar(vinculo.id, [], necessarioFinanceiro)
       }
-      return vinculoService.aprovar(vinculo.id, anexoUrls)
+      return vinculoService.aprovar(vinculo.id, anexoUrls, undefined, observacoesFinanceiro || undefined)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vinculos'] })
@@ -478,6 +479,14 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                 </div>
               )}
 
+              {/* Comprovante do Financeiro — visível para TI e leitura geral */}
+              {vinculo.observacoes_financeiro && (
+                <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                  <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-2">Comprovante de Pagamento (Financeiro)</p>
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap">{vinculo.observacoes_financeiro}</p>
+                </div>
+              )}
+
               {/* Histórico do Fluxo */}
               {(() => {
                 const comFinanceiro = vinculo.necessario_validacao || vinculo.status === 'validacao_financeiro'
@@ -550,6 +559,20 @@ export function VinculoModal({ vinculo, onClose, modo }: VinculoModalProps) {
                   <p className="text-xs text-amber-600 mt-1 ml-7">
                     {necessarioFinanceiro ? 'Irá para Financeiro → TI' : 'Irá direto para TI'}
                   </p>
+                </div>
+              )}
+
+              {/* Comprovante de pagamento — só financeiro */}
+              {podeAprovarReprovar && modo === 'financeiro' && !mostrarReprovar && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Comprovante de Pagamento</p>
+                  <textarea
+                    value={observacoesFinanceiro}
+                    onChange={(e) => setObservacoesFinanceiro(e.target.value)}
+                    placeholder="Cole aqui o comprovante de pagamento (valor pago, NSU, código de autorização, parcelas...)"
+                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-300 transition-all resize-none"
+                    rows={5}
+                  />
                 </div>
               )}
 
